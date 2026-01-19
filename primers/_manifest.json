@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "primers": {
+    "effect": {
+      "description": "Effect TypeScript patterns",
+      "files": [
+        "index.md",
+        "basics.md",
+        "services.md",
+        "data-modeling.md",
+        "errors.md",
+        "testing.md",
+        "cli.md"
+      ]
+    },
+    "oxlint": {
+      "description": "High-performance linter",
+      "files": ["index.md", "setup.md"]
+    },
+    "oxfmt": {
+      "description": "High-performance formatter",
+      "files": ["index.md", "setup.md"]
+    }
+  }
+}
