@@ -175,8 +175,7 @@ export const primerCommand = Command.make(
             }
 
             yield* Console.error("Run `primer` to see available primers.")
-            return yield* e
-          }),
+          }).pipe(Effect.andThen(Effect.fail(e))),
         ),
         Effect.catchTag("ManifestError", (e) =>
           Console.error(`Failed to fetch primer: ${primer}`).pipe(
@@ -204,10 +203,12 @@ export const primerCommand = Command.make(
             }
 
             yield* Console.error("Run `primer` to see available primers.")
-            return yield* e
-          }),
+          }).pipe(Effect.andThen(Effect.fail(e))),
         ),
+        Effect.catchAll(() => Effect.succeed(null)),
       )
+
+      if (content === null) return
 
       // TTY: background refresh (non-blocking)
       // non-TTY: skip refresh (use cache) unless --fetch
