@@ -1,4 +1,4 @@
-import { Args, Command, Options } from "@effect/cli"
+import { Args, Command, HelpDoc, Options, Span } from "@effect/cli"
 import { Console, Effect, Fiber, Stream, Ref, Config } from "effect"
 import { Terminal, FileSystem, Path } from "@effect/platform"
 import type { PlatformError } from "@effect/platform/Error"
@@ -31,11 +31,19 @@ const pathArgs = Args.text({ name: "path" }).pipe(Args.repeated)
 
 const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
 
+const shouldShowSpinner = (): boolean =>
+  process.stdout.isTTY === true && !process.env.NO_COLOR && process.env.TERM !== "dumb"
+
 const withSpinner = <A, E, R>(
   message: string,
   effect: Effect.Effect<A, E, R>,
 ): Effect.Effect<A, E | PlatformError, R | Terminal.Terminal> =>
   Effect.gen(function* () {
+    // Skip spinner for non-TTY or NO_COLOR
+    if (!shouldShowSpinner()) {
+      return yield* effect
+    }
+
     const terminal = yield* Terminal.Terminal
     const idx = yield* Ref.make(0)
 
@@ -55,6 +63,24 @@ const withSpinner = <A, E, R>(
     return result
   }).pipe(Effect.withSpan("withSpinner", { attributes: { message } }))
 
+const helpDescription = HelpDoc.blocks([
+  HelpDoc.p("Render curated markdown primers for AI agents."),
+  HelpDoc.empty,
+  HelpDoc.p(Span.strong("EXAMPLES")),
+  HelpDoc.empty,
+  HelpDoc.p(Span.code("primer")),
+  HelpDoc.p("  List available primers"),
+  HelpDoc.empty,
+  HelpDoc.p(Span.code("primer effect")),
+  HelpDoc.p("  Show Effect primer"),
+  HelpDoc.empty,
+  HelpDoc.p(Span.code("primer effect services")),
+  HelpDoc.p("  Show sub-primer"),
+  HelpDoc.empty,
+  HelpDoc.p(Span.code("primer init")),
+  HelpDoc.p("  Install primer skill to AI tool directories"),
+])
+
 export const primerCommand = Command.make("primer", { path: pathArgs }, ({ path }) =>
   Effect.gen(function* () {
     const cache = yield* PrimerCache
@@ -62,16 +88,13 @@ export const primerCommand = Command.make("primer", { path: pathArgs }, ({ path 
 
     if (path.length === 0) {
       const manifest = yield* withSpinner("Loading primers...", manifestService.get).pipe(
-        Effect.catchAll(
-          Effect.fn("handleManifestError")(function* () {
-            yield* Console.error("Failed to load primer manifest.")
-            yield* Console.error("Check your network connection and try again.")
-            return null
-          }),
+        Effect.catchTag("ManifestError", (e) =>
+          Console.error("Failed to load primer manifest.").pipe(
+            Effect.andThen(Console.error("Check your network connection and try again.")),
+            Effect.andThen(Effect.fail(e)),
+          ),
         ),
       )
-
-      if (!manifest) return
 
       yield* manifestService.refresh.pipe(
         Effect.catchAll(() => Effect.void),
@@ -95,49 +118,42 @@ export const primerCommand = Command.make("primer", { path: pathArgs }, ({ path 
       return
     }
 
+    // Handle "help" as a special case
+    if (path[0] === "help") {
+      yield* Console.log(HelpDoc.toAnsiText(helpDescription))
+      return
+    }
+
     const primer = path[0]
     if (!primer) return
 
     const content = yield* cache.resolve(path).pipe(
-      Effect.catchTag(
-        "ContentNotFoundError",
-        Effect.fn("handleNotFound")(function* () {
-          yield* withSpinner(`Fetching ${primer}...`, cache.ensure(primer)).pipe(
-            Effect.catchAll(
-              Effect.fn("handleFetchError")(function* () {
-                yield* Console.error(`Failed to fetch primer: ${primer}`)
-                yield* Console.error("")
-                yield* Console.error("Run `primer` to see available primers.")
-                return null
-              }),
-            ),
-          )
-
-          return yield* cache.resolve(path).pipe(
-            Effect.catchTag(
-              "ContentNotFoundError",
-              Effect.fn("handleResolveError")(function* (e) {
-                yield* Console.error(e.message)
-                yield* Console.error("")
-                yield* Console.error("Run `primer` to see available primers.")
-                return null
-              }),
-            ),
-          )
-        }),
+      Effect.catchTag("ContentNotFoundError", () =>
+        withSpinner(`Fetching ${primer}...`, cache.ensure(primer)).pipe(
+          Effect.andThen(cache.resolve(path)),
+        ),
+      ),
+      Effect.catchTag("ContentNotFoundError", (e) =>
+        Console.error(e.message).pipe(
+          Effect.andThen(Console.error("")),
+          Effect.andThen(Console.error("Run `primer` to see available primers.")),
+          Effect.andThen(Effect.fail(e)),
+        ),
+      ),
+      Effect.catchTag("ManifestError", (e) =>
+        Console.error(`Failed to fetch primer: ${primer}`).pipe(
+          Effect.andThen(Console.error("")),
+          Effect.andThen(Console.error("Run `primer` to see available primers.")),
+          Effect.andThen(Effect.fail(e)),
+        ),
       ),
     )
-
-    if (typeof content !== "string") return
 
     yield* cache.refreshInBackground(primer).pipe(Effect.forkDaemon)
 
     yield* Console.log(content)
-  }).pipe(
-    Effect.catchAll(() => Effect.void),
-    Effect.withSpan("primerCommand"),
-  ),
-)
+  }).pipe(Effect.withSpan("primerCommand")),
+).pipe(Command.withDescription(helpDescription))
 
 const localFlag = Options.boolean("local").pipe(
   Options.withAlias("l"),
@@ -199,10 +215,7 @@ const initCommand = Command.make("init", { local: localFlag }, ({ local }) =>
     } else if (created > 0) {
       yield* Console.log(`\nCreated ${created} skill file(s).`)
     }
-  }).pipe(
-    Effect.catchAll((e) => Console.error(`Failed to init: ${e}`)),
-    Effect.withSpan("initCommand"),
-  ),
+  }).pipe(Effect.withSpan("initCommand")),
 )
 
 const primerWithSubcommands = primerCommand.pipe(Command.withSubcommands([initCommand]))
