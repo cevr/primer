@@ -20,6 +20,29 @@
     "oxfmt": {
       "description": "High-performance formatter",
       "files": ["index.md", "setup.md"]
+    },
+    "primer": {
+      "description": "How to write effective primers for AI agents",
+      "files": [
+        "index.md",
+        "structure.md",
+        "progressive.md",
+        "decision-trees.md",
+        "gotchas.md"
+      ]
+    },
+    "cli": {
+      "description": "CLI design, UX, and best practices",
+      "files": [
+        "index.md",
+        "design.md",
+        "commands.md",
+        "help.md",
+        "output.md",
+        "errors.md",
+        "config.md",
+        "gotchas.md"
+      ]
     }
   }
 }
