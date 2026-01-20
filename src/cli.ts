@@ -21,6 +21,7 @@ Curated markdown primers for AI agents. Use proactively when working on relevant
 primer                    # List all available primers
 primer <name>             # Render primer (e.g., primer effect)
 primer <name> <sub>       # Render sub-primer (e.g., primer effect services)
+primer update             # Refresh all cached primers
 primer help               # Show help with examples
 \`\`\`
 
@@ -94,6 +95,9 @@ const helpDescription = HelpDoc.blocks([
   HelpDoc.empty,
   HelpDoc.p(Span.code("primer init")),
   HelpDoc.p("  Install primer skill to AI tool directories"),
+  HelpDoc.empty,
+  HelpDoc.p(Span.code("primer update")),
+  HelpDoc.p("  Refresh all cached primers"),
 ])
 
 export const primerCommand = Command.make(
@@ -243,7 +247,29 @@ const initCommand = Command.make("init", { local: localFlag }, ({ local }) =>
   }).pipe(Effect.withSpan("initCommand")),
 )
 
-const primerWithSubcommands = primerCommand.pipe(Command.withSubcommands([initCommand]))
+const updateCommand = Command.make("update", {}, () =>
+  Effect.gen(function* () {
+    const cache = yield* PrimerCache
+    const manifestService = yield* ManifestService
+
+    yield* withSpinner("Refreshing manifest...", manifestService.refresh)
+
+    const refreshed = yield* withSpinner("Updating primers...", cache.refreshAll())
+
+    if (refreshed.length === 0) {
+      yield* Console.log("No primers to update.")
+    } else {
+      yield* Console.log(`Updated ${refreshed.length} primer(s):`)
+      for (const name of refreshed.toSorted()) {
+        yield* Console.log(`  ${name}`)
+      }
+    }
+  }).pipe(Effect.withSpan("updateCommand")),
+)
+
+const primerWithSubcommands = primerCommand.pipe(
+  Command.withSubcommands([initCommand, updateCommand]),
+)
 
 export const runCli = Command.run(primerWithSubcommands, {
   name: "primer",

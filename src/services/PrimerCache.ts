@@ -30,6 +30,10 @@ export class PrimerCache extends Context.Tag("@primer/PrimerCache")<
       primer: string,
     ) => Effect.Effect<void, FetchError | ManifestError | PlatformError>
     readonly refreshInBackground: (primer: string) => Effect.Effect<void>
+    readonly refreshAll: () => Effect.Effect<
+      ReadonlyArray<string>,
+      FetchError | ManifestError | PlatformError
+    >
   }
 >() {}
 
@@ -154,7 +158,62 @@ export const PrimerCacheLive = Layer.effect(
         Effect.withSpan("refreshInBackground", { attributes: { primerName } }),
       )
 
-    return { resolve, ensure, refreshInBackground } as const
+    const refreshAll = () =>
+      Effect.gen(function* () {
+        const manifestData = yield* manifest.get
+
+        // Only refresh primers that are already installed locally
+        const meta = yield* readMeta(metaPath).pipe(
+          Effect.provideService(FileSystem.FileSystem, fs),
+        )
+        const installedPrimers = Object.keys(meta.primers ?? {})
+
+        if (installedPrimers.length === 0) {
+          return []
+        }
+
+        const refreshed: Array<string> = []
+
+        for (const primerName of installedPrimers) {
+          const primerConfig = manifestData.primers[primerName]
+          if (!primerConfig) continue
+
+          const primerDir = path.join(basePath, primerName)
+          yield* fs.makeDirectory(primerDir, { recursive: true })
+
+          let success = true
+          for (const file of primerConfig.files) {
+            const content = yield* fetchFile(`${primerName}/${file}`).pipe(
+              Effect.catchAll(() => Effect.succeed(null)),
+            )
+            if (content) {
+              const filePath = path.join(primerDir, file)
+              yield* fs.writeFileString(filePath, content)
+            } else {
+              success = false
+            }
+          }
+
+          if (success) {
+            refreshed.push(primerName)
+            const currentMeta = yield* readMeta(metaPath).pipe(
+              Effect.provideService(FileSystem.FileSystem, fs),
+            )
+            const timestamp = DateTime.formatIso(yield* DateTime.now)
+            const updatedMeta: Meta = {
+              ...currentMeta,
+              primers: { ...currentMeta.primers, [primerName]: { fetchedAt: timestamp } },
+            }
+            yield* writeMeta(metaPath, updatedMeta).pipe(
+              Effect.provideService(FileSystem.FileSystem, fs),
+            )
+          }
+        }
+
+        return refreshed
+      }).pipe(Effect.withSpan("refreshAll"))
+
+    return { resolve, ensure, refreshInBackground, refreshAll } as const
   }),
 )
 
@@ -169,4 +228,5 @@ export const PrimerCacheTest = (content: Record<string, string>) =>
     },
     ensure: () => Effect.void,
     refreshInBackground: () => Effect.void,
+    refreshAll: () => Effect.succeed([]),
   })

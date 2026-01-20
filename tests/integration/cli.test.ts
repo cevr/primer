@@ -117,6 +117,11 @@ const PrimerCacheTestWithTracking = (content: Record<string, string>) =>
             ...calls,
             { service: "cache" as const, method: "refreshInBackground", args: primer },
           ]),
+        refreshAll: () =>
+          Ref.update(callRecorder, (calls) => [
+            ...calls,
+            { service: "cache" as const, method: "refreshAll" },
+          ]).pipe(Effect.as([])),
       }
     }),
   )
@@ -464,6 +469,18 @@ describe("primer CLI workflow", () => {
 
         const resolveCall = calls.find((c) => c.method === "resolve")
         expect(resolveCall?.args).toEqual(["effect", "services"])
+      }),
+    )
+  })
+
+  describe("primer update", () => {
+    it.live("calls refreshAll", () =>
+      Effect.gen(function* () {
+        const { calls, stdout } = yield* testCliWithSequence(["update"], {})
+
+        const methods = calls.map((c) => c.method)
+        expect(methods).toContain("refreshAll")
+        expect(stdout).toContain("No primers to update")
       }),
     )
   })
