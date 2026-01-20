@@ -122,6 +122,7 @@ const PrimerCacheTestWithTracking = (content: Record<string, string>) =>
             ...calls,
             { service: "cache" as const, method: "refreshAll" },
           ]).pipe(Effect.as([])),
+        suggestSimilar: () => Effect.succeed([]),
       }
     }),
   )

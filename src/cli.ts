@@ -157,18 +157,55 @@ export const primerCommand = Command.make(
           ),
         ),
         Effect.catchTag("ContentNotFoundError", (e) =>
-          Console.error(e.message).pipe(
-            Effect.andThen(Console.error("")),
-            Effect.andThen(Console.error("Run `primer` to see available primers.")),
-            Effect.andThen(Effect.fail(e)),
-          ),
+          Effect.gen(function* () {
+            yield* Console.error(e.message)
+            yield* Console.error("")
+
+            // Try to suggest similar paths
+            const suggestions = yield* cache
+              .suggestSimilar(path)
+              .pipe(Effect.catchAll(() => Effect.succeed([])))
+
+            if (suggestions.length > 0) {
+              yield* Console.error("Did you mean:")
+              for (const suggestion of suggestions) {
+                yield* Console.error(`  primer ${suggestion}`)
+              }
+              yield* Console.error("")
+            }
+
+            yield* Console.error("Run `primer` to see available primers.")
+            return yield* e
+          }),
         ),
         Effect.catchTag("ManifestError", (e) =>
           Console.error(`Failed to fetch primer: ${primer}`).pipe(
             Effect.andThen(Console.error("")),
-            Effect.andThen(Console.error("Run `primer` to see available primers.")),
+            Effect.andThen(Console.error("Check your network connection and try again.")),
             Effect.andThen(Effect.fail(e)),
           ),
+        ),
+        Effect.catchTag("FetchError", (e) =>
+          Effect.gen(function* () {
+            yield* Console.error(`Primer not found: ${primer}`)
+            yield* Console.error("")
+
+            // Try to suggest similar primers
+            const suggestions = yield* cache
+              .suggestSimilar(path)
+              .pipe(Effect.catchAll(() => Effect.succeed([])))
+
+            if (suggestions.length > 0) {
+              yield* Console.error("Did you mean:")
+              for (const suggestion of suggestions) {
+                yield* Console.error(`  primer ${suggestion}`)
+              }
+              yield* Console.error("")
+            }
+
+            yield* Console.error("Run `primer` to see available primers.")
+            return yield* e
+          }),
         ),
       )
 

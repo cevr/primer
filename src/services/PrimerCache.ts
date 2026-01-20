@@ -36,6 +36,9 @@ export class PrimerCache extends Context.Tag("@primer/PrimerCache")<
       ReadonlyArray<string>,
       FetchError | ManifestError | PlatformError
     >
+    readonly suggestSimilar: (
+      path: ReadonlyArray<string>,
+    ) => Effect.Effect<ReadonlyArray<string>, ManifestError | FetchError | PlatformError>
   }
 >() {}
 
@@ -85,11 +88,6 @@ export const PrimerCacheLive = Layer.effect(
 
     const ensure = (primerName: string) =>
       Effect.gen(function* () {
-        const primerDir = path.join(basePath, primerName)
-        const primerExists = yield* fs.exists(primerDir)
-
-        if (primerExists) return
-
         const manifestData = yield* manifest.get
         const primerConfig = manifestData.primers[primerName]
 
@@ -99,28 +97,44 @@ export const PrimerCacheLive = Layer.effect(
           })
         }
 
+        const primerDir = path.join(basePath, primerName)
         yield* fs.makeDirectory(primerDir, { recursive: true })
 
-        const etags: Record<string, { etag: string }> = {}
-        for (const file of primerConfig.files) {
-          const result = yield* fetchFile(`${primerName}/${file}`)
-          if ("notModified" in result) continue
-          const filePath = path.join(primerDir, file)
-          yield* fs.writeFileString(filePath, result.content)
-          if (result.etag) {
-            etags[file] = { etag: result.etag }
-          }
-        }
-
+        // Get existing etags to skip unchanged files
         const meta = yield* readMeta(metaPath).pipe(
           Effect.provideService(FileSystem.FileSystem, fs),
         )
+        const existingEtags = meta.primers?.[primerName]?.etags ?? {}
+        const newEtags: Record<string, { etag: string }> = { ...existingEtags }
+
+        // Fetch any missing files
+        for (const file of primerConfig.files) {
+          const filePath = path.join(primerDir, file)
+
+          // Check if file exists locally
+          const fileExists = yield* fs.exists(filePath)
+          if (fileExists) continue
+
+          // Ensure parent directories exist for nested files
+          const fileDir = path.dirname(filePath)
+          yield* fs.makeDirectory(fileDir, { recursive: true })
+
+          // Fetch the file
+          const result = yield* fetchFile(`${primerName}/${file}`)
+          if ("notModified" in result) continue
+
+          yield* fs.writeFileString(filePath, result.content)
+          if (result.etag) {
+            newEtags[file] = { etag: result.etag }
+          }
+        }
+
         const timestamp = DateTime.formatIso(yield* DateTime.now)
         const updatedMeta: Meta = {
           ...meta,
           primers: {
             ...meta.primers,
-            [primerName]: { fetchedAt: timestamp, etags },
+            [primerName]: { fetchedAt: timestamp, etags: newEtags },
           },
         }
         yield* writeMeta(metaPath, updatedMeta).pipe(
@@ -270,9 +284,76 @@ export const PrimerCacheLive = Layer.effect(
         return refreshed
       }).pipe(Effect.withSpan("refreshAll"))
 
-    return { resolve, ensure, refreshInBackground, refreshAll } as const
+    const suggestSimilar = (segments: ReadonlyArray<string>) =>
+      Effect.gen(function* () {
+        const manifestData = yield* manifest.get
+        const query = segments.join("/").toLowerCase()
+        const primerName = segments[0]
+
+        const suggestions: string[] = []
+
+        // Check if primer exists
+        if (primerName && manifestData.primers[primerName]) {
+          const primerConfig = manifestData.primers[primerName]
+          // Suggest available sub-paths within this primer
+          for (const file of primerConfig.files) {
+            const filePath = file.replace(/\.md$/, "").replace(/\/index$/, "")
+            if (filePath && filePath !== "index") {
+              const fullPath = `${primerName} ${filePath.replace(/\//g, " ")}`
+              if (
+                fullPath.toLowerCase().includes(query) ||
+                levenshtein(query, fullPath.toLowerCase()) < 4
+              ) {
+                suggestions.push(fullPath)
+              }
+            }
+          }
+        }
+
+        // Suggest similar primer names
+        for (const name of Object.keys(manifestData.primers)) {
+          if (levenshtein(query, name.toLowerCase()) < 3) {
+            suggestions.push(name)
+          }
+        }
+
+        return suggestions.slice(0, 3)
+      }).pipe(Effect.withSpan("suggestSimilar"))
+
+    return { resolve, ensure, refreshInBackground, refreshAll, suggestSimilar } as const
   }),
 )
+
+// Simple Levenshtein distance for fuzzy matching
+const levenshtein = (a: string, b: string): number => {
+  if (a.length === 0) return b.length
+  if (b.length === 0) return a.length
+
+  const matrix: number[][] = []
+
+  for (let i = 0; i <= b.length; i++) {
+    matrix[i] = [i]
+  }
+  for (let j = 0; j <= a.length; j++) {
+    matrix[0]![j] = j
+  }
+
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i]![j] = matrix[i - 1]![j - 1]!
+      } else {
+        matrix[i]![j] = Math.min(
+          matrix[i - 1]![j - 1]! + 1,
+          matrix[i]![j - 1]! + 1,
+          matrix[i - 1]![j]! + 1,
+        )
+      }
+    }
+  }
+
+  return matrix[b.length]![a.length]!
+}
 
 // Test layer
 export const PrimerCacheTest = (content: Record<string, string>) =>
@@ -286,4 +367,5 @@ export const PrimerCacheTest = (content: Record<string, string>) =>
     ensure: () => Effect.void,
     refreshInBackground: () => Effect.void,
     refreshAll: () => Effect.succeed([]),
+    suggestSimilar: () => Effect.succeed([]),
   })
