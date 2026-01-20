@@ -2,8 +2,7 @@ import { Context, DateTime, Effect, Layer, Schema, Config, Option } from "effect
 import { FileSystem, Path, HttpClient, HttpClientRequest, Headers } from "@effect/platform"
 import type { PlatformError } from "@effect/platform/Error"
 import { FetchError, ManifestError } from "../lib/errors.js"
-import { readMeta, writeMeta } from "../lib/meta.js"
-import type { Meta } from "../lib/meta.js"
+import { readMeta, writeMeta, type Meta } from "../lib/meta.js"
 
 const REPO = "cevr/primer"
 const BRANCH = "main"
@@ -53,10 +52,27 @@ export const ManifestServiceLive = Layer.effect(
     const manifestPath = path.join(basePath, "_manifest.json")
     const metaPath = path.join(basePath, "_meta.json")
 
-    const fetchManifest = Effect.gen(function* () {
-      const url = `${RAW_BASE}/primers/_manifest.json`
+    const url = `${RAW_BASE}/primers/_manifest.json`
 
-      // Check for cached ETag
+    const fetchAndSave = (text: string, etag: string | undefined, meta: Meta) =>
+      Effect.gen(function* () {
+        const parsed = yield* Schema.decode(ManifestFromJson)(text).pipe(
+          Effect.mapError((e) => new ManifestError({ cause: e })),
+        )
+
+        yield* fs.makeDirectory(basePath, { recursive: true })
+        yield* fs.writeFileString(manifestPath, text)
+
+        const timestamp = DateTime.formatIso(yield* DateTime.now)
+        const updatedMeta: Meta = { ...meta, manifestFetchedAt: timestamp, manifestEtag: etag }
+        yield* writeMeta(metaPath, updatedMeta).pipe(
+          Effect.provideService(FileSystem.FileSystem, fs),
+        )
+
+        return parsed
+      })
+
+    const fetchManifest = Effect.gen(function* () {
       const meta = yield* readMeta(metaPath).pipe(Effect.provideService(FileSystem.FileSystem, fs))
       const cachedEtag = meta.manifestEtag
 
@@ -69,15 +85,12 @@ export const ManifestServiceLive = Layer.effect(
         Effect.scoped,
       )
 
-      // Not modified - return cached
       if (response.status === 304) {
         const cached = yield* readCached
         if (cached) return cached
-        // Fallback to fetch without etag if cache is missing
-        return yield* fetchManifestWithoutEtag
       }
 
-      if (response.status !== 200) {
+      if (response.status !== 200 && response.status !== 304) {
         return yield* new FetchError({ url })
       }
 
@@ -85,50 +98,8 @@ export const ManifestServiceLive = Layer.effect(
         Effect.mapError((e) => new FetchError({ url, cause: e })),
       )
 
-      const parsed = yield* Schema.decode(ManifestFromJson)(text).pipe(
-        Effect.mapError((e) => new ManifestError({ cause: e })),
-      )
-
-      yield* fs.makeDirectory(basePath, { recursive: true })
-      yield* fs.writeFileString(manifestPath, text)
-
       const etag = Option.getOrUndefined(Headers.get(response.headers, "etag"))
-      const timestamp = DateTime.formatIso(yield* DateTime.now)
-      const updatedMeta: Meta = { ...meta, manifestFetchedAt: timestamp, manifestEtag: etag }
-      yield* writeMeta(metaPath, updatedMeta).pipe(Effect.provideService(FileSystem.FileSystem, fs))
-
-      return parsed
-    })
-
-    const fetchManifestWithoutEtag = Effect.gen(function* () {
-      const url = `${RAW_BASE}/primers/_manifest.json`
-      const response = yield* http.execute(HttpClientRequest.get(url)).pipe(
-        Effect.mapError((e) => new FetchError({ url, cause: e })),
-        Effect.scoped,
-      )
-
-      if (response.status !== 200) {
-        return yield* new FetchError({ url })
-      }
-
-      const text = yield* response.text.pipe(
-        Effect.mapError((e) => new FetchError({ url, cause: e })),
-      )
-
-      const parsed = yield* Schema.decode(ManifestFromJson)(text).pipe(
-        Effect.mapError((e) => new ManifestError({ cause: e })),
-      )
-
-      yield* fs.makeDirectory(basePath, { recursive: true })
-      yield* fs.writeFileString(manifestPath, text)
-
-      const etag = Option.getOrUndefined(Headers.get(response.headers, "etag"))
-      const meta = yield* readMeta(metaPath).pipe(Effect.provideService(FileSystem.FileSystem, fs))
-      const timestamp = DateTime.formatIso(yield* DateTime.now)
-      const updatedMeta: Meta = { ...meta, manifestFetchedAt: timestamp, manifestEtag: etag }
-      yield* writeMeta(metaPath, updatedMeta).pipe(Effect.provideService(FileSystem.FileSystem, fs))
-
-      return parsed
+      return yield* fetchAndSave(text, etag, meta)
     })
 
     const readCached = Effect.gen(function* () {

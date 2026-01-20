@@ -7,16 +7,7 @@
 import { Effect, Array as Arr } from "effect"
 import { FileSystem, Path } from "@effect/platform"
 import { BunContext, BunRuntime } from "@effect/platform-bun"
-
-interface PrimerConfig {
-  description: string
-  files: string[]
-}
-
-interface Manifest {
-  version: number
-  primers: Record<string, PrimerConfig>
-}
+import type { Manifest, PrimerConfig } from "../src/services/ManifestService.js"
 
 const getFiles = (
   fs: FileSystem.FileSystem,

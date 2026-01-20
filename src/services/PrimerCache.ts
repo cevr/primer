@@ -3,8 +3,7 @@ import { FileSystem, Path, HttpClient, HttpClientRequest, Headers } from "@effec
 import type { PlatformError } from "@effect/platform/Error"
 import { ContentNotFoundError, FetchError, ManifestError } from "../lib/errors.js"
 import { ManifestService } from "./ManifestService.js"
-import { readMeta, writeMeta } from "../lib/meta.js"
-import type { Meta } from "../lib/meta.js"
+import { readMeta, writeMeta, type Meta } from "../lib/meta.js"
 
 type FetchResult = { content: string; etag: string | undefined } | { notModified: true }
 
@@ -163,31 +162,26 @@ export const PrimerCacheLive = Layer.effect(
         })
       }).pipe(Effect.withSpan("resolve", { attributes: { path: segments.join("/") } }))
 
-    const refreshInBackground = (primerName: string) =>
+    type EtagMap = Record<string, { etag: string }>
+
+    const refreshPrimer = (
+      primerName: string,
+      files: ReadonlyArray<string>,
+      existingEtags: EtagMap,
+    ) =>
       Effect.gen(function* () {
-        const manifestData = yield* manifest.get
-        const primerConfig = manifestData.primers[primerName]
-
-        if (!primerConfig) return
-
-        const meta = yield* readMeta(metaPath).pipe(
-          Effect.provideService(FileSystem.FileSystem, fs),
-        )
-        const existingEtags = meta.primers?.[primerName]?.etags ?? {}
-
         const primerDir = path.join(basePath, primerName)
         yield* fs.makeDirectory(primerDir, { recursive: true })
 
-        const newEtags: Record<string, { etag: string }> = { ...existingEtags }
+        const newEtags: EtagMap = { ...existingEtags }
         let anyUpdated = false
 
-        for (const file of primerConfig.files) {
+        for (const file of files) {
           const cachedEtag = existingEtags[file]?.etag
           const result = yield* fetchFile(`${primerName}/${file}`, cachedEtag).pipe(
             Effect.catchAll(() => Effect.succeed(null)),
           )
-          if (!result) continue
-          if ("notModified" in result) continue
+          if (!result || "notModified" in result) continue
 
           anyUpdated = true
           const filePath = path.join(primerDir, file)
@@ -213,6 +207,22 @@ export const PrimerCacheLive = Layer.effect(
             Effect.provideService(FileSystem.FileSystem, fs),
           )
         }
+
+        return anyUpdated
+      })
+
+    const refreshInBackground = (primerName: string) =>
+      Effect.gen(function* () {
+        const manifestData = yield* manifest.get
+        const primerConfig = manifestData.primers[primerName]
+        if (!primerConfig) return
+
+        const meta = yield* readMeta(metaPath).pipe(
+          Effect.provideService(FileSystem.FileSystem, fs),
+        )
+        const existingEtags = meta.primers?.[primerName]?.etags ?? {}
+
+        yield* refreshPrimer(primerName, primerConfig.files, existingEtags)
       }).pipe(
         Effect.catchAll(() => Effect.void),
         Effect.asVoid,
@@ -222,16 +232,12 @@ export const PrimerCacheLive = Layer.effect(
     const refreshAll = () =>
       Effect.gen(function* () {
         const manifestData = yield* manifest.get
-
-        // Only refresh primers that are already installed locally
         const meta = yield* readMeta(metaPath).pipe(
           Effect.provideService(FileSystem.FileSystem, fs),
         )
         const installedPrimers = Object.keys(meta.primers ?? {})
 
-        if (installedPrimers.length === 0) {
-          return []
-        }
+        if (installedPrimers.length === 0) return []
 
         const refreshed: Array<string> = []
 
@@ -240,45 +246,8 @@ export const PrimerCacheLive = Layer.effect(
           if (!primerConfig) continue
 
           const existingEtags = meta.primers?.[primerName]?.etags ?? {}
-          const primerDir = path.join(basePath, primerName)
-          yield* fs.makeDirectory(primerDir, { recursive: true })
-
-          const newEtags: Record<string, { etag: string }> = { ...existingEtags }
-          let anyUpdated = false
-
-          for (const file of primerConfig.files) {
-            const cachedEtag = existingEtags[file]?.etag
-            const result = yield* fetchFile(`${primerName}/${file}`, cachedEtag).pipe(
-              Effect.catchAll(() => Effect.succeed(null)),
-            )
-            if (!result) continue
-            if ("notModified" in result) continue
-
-            anyUpdated = true
-            const filePath = path.join(primerDir, file)
-            yield* fs.writeFileString(filePath, result.content)
-            if (result.etag) {
-              newEtags[file] = { etag: result.etag }
-            }
-          }
-
-          if (anyUpdated) {
-            refreshed.push(primerName)
-            const currentMeta = yield* readMeta(metaPath).pipe(
-              Effect.provideService(FileSystem.FileSystem, fs),
-            )
-            const timestamp = DateTime.formatIso(yield* DateTime.now)
-            const updatedMeta: Meta = {
-              ...currentMeta,
-              primers: {
-                ...currentMeta.primers,
-                [primerName]: { fetchedAt: timestamp, etags: newEtags },
-              },
-            }
-            yield* writeMeta(metaPath, updatedMeta).pipe(
-              Effect.provideService(FileSystem.FileSystem, fs),
-            )
-          }
+          const updated = yield* refreshPrimer(primerName, primerConfig.files, existingEtags)
+          if (updated) refreshed.push(primerName)
         }
 
         return refreshed
@@ -289,14 +258,15 @@ export const PrimerCacheLive = Layer.effect(
         const manifestData = yield* manifest.get
         const query = segments.join("/").toLowerCase()
         const primerName = segments[0]
+        const maxSuggestions = 3
 
         const suggestions: string[] = []
 
-        // Check if primer exists
+        // Check if primer exists - suggest sub-paths
         if (primerName && manifestData.primers[primerName]) {
           const primerConfig = manifestData.primers[primerName]
-          // Suggest available sub-paths within this primer
           for (const file of primerConfig.files) {
+            if (suggestions.length >= maxSuggestions) break
             const filePath = file.replace(/\.md$/, "").replace(/\/index$/, "")
             if (filePath && filePath !== "index") {
               const fullPath = `${primerName} ${filePath.replace(/\//g, " ")}`
@@ -312,12 +282,13 @@ export const PrimerCacheLive = Layer.effect(
 
         // Suggest similar primer names
         for (const name of Object.keys(manifestData.primers)) {
+          if (suggestions.length >= maxSuggestions) break
           if (levenshtein(query, name.toLowerCase()) < 3) {
             suggestions.push(name)
           }
         }
 
-        return suggestions.slice(0, 3)
+        return suggestions
       }).pipe(Effect.withSpan("suggestSimilar"))
 
     return { resolve, ensure, refreshInBackground, refreshAll, suggestSimilar } as const
