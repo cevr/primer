@@ -1,10 +1,12 @@
-import { Context, DateTime, Effect, Layer, Config } from "effect"
-import { FileSystem, Path, HttpClient, HttpClientRequest } from "@effect/platform"
+import { Context, DateTime, Effect, Layer, Config, Option } from "effect"
+import { FileSystem, Path, HttpClient, HttpClientRequest, Headers } from "@effect/platform"
 import type { PlatformError } from "@effect/platform/Error"
 import { ContentNotFoundError, FetchError, ManifestError } from "../lib/errors.js"
 import { ManifestService } from "./ManifestService.js"
 import { readMeta, writeMeta } from "../lib/meta.js"
 import type { Meta } from "../lib/meta.js"
+
+type FetchResult = { content: string; etag: string | undefined } | { notModified: true }
 
 const REPO = "cevr/primer"
 const BRANCH = "main"
@@ -48,19 +50,37 @@ export const PrimerCacheLive = Layer.effect(
 
     const metaPath = path.join(basePath, "_meta.json")
 
-    const fetchFile = (filePath: string) =>
+    const fetchFile = (
+      filePath: string,
+      cachedEtag?: string,
+    ): Effect.Effect<FetchResult, FetchError> =>
       Effect.gen(function* () {
         const url = `${RAW_BASE}/primers/${filePath}`
-        const response = yield* http.execute(HttpClientRequest.get(url)).pipe(
+        const request = cachedEtag
+          ? HttpClientRequest.get(url).pipe(
+              HttpClientRequest.setHeader("If-None-Match", cachedEtag),
+            )
+          : HttpClientRequest.get(url)
+
+        const response = yield* http.execute(request).pipe(
           Effect.mapError((e) => new FetchError({ url, cause: e })),
           Effect.scoped,
         )
+
+        if (response.status === 304) {
+          return { notModified: true } as const
+        }
 
         if (response.status !== 200) {
           return yield* new FetchError({ url })
         }
 
-        return yield* response.text.pipe(Effect.mapError((e) => new FetchError({ url, cause: e })))
+        const content = yield* response.text.pipe(
+          Effect.mapError((e) => new FetchError({ url, cause: e })),
+        )
+        const etag = Option.getOrUndefined(Headers.get(response.headers, "etag"))
+
+        return { content, etag }
       }).pipe(Effect.withSpan("fetchFile", { attributes: { filePath } }))
 
     const ensure = (primerName: string) =>
@@ -81,10 +101,15 @@ export const PrimerCacheLive = Layer.effect(
 
         yield* fs.makeDirectory(primerDir, { recursive: true })
 
+        const etags: Record<string, { etag: string }> = {}
         for (const file of primerConfig.files) {
-          const content = yield* fetchFile(`${primerName}/${file}`)
+          const result = yield* fetchFile(`${primerName}/${file}`)
+          if ("notModified" in result) continue
           const filePath = path.join(primerDir, file)
-          yield* fs.writeFileString(filePath, content)
+          yield* fs.writeFileString(filePath, result.content)
+          if (result.etag) {
+            etags[file] = { etag: result.etag }
+          }
         }
 
         const meta = yield* readMeta(metaPath).pipe(
@@ -93,7 +118,10 @@ export const PrimerCacheLive = Layer.effect(
         const timestamp = DateTime.formatIso(yield* DateTime.now)
         const updatedMeta: Meta = {
           ...meta,
-          primers: { ...meta.primers, [primerName]: { fetchedAt: timestamp } },
+          primers: {
+            ...meta.primers,
+            [primerName]: { fetchedAt: timestamp, etags },
+          },
         }
         yield* writeMeta(metaPath, updatedMeta).pipe(
           Effect.provideService(FileSystem.FileSystem, fs),
@@ -128,30 +156,49 @@ export const PrimerCacheLive = Layer.effect(
 
         if (!primerConfig) return
 
-        const primerDir = path.join(basePath, primerName)
-        yield* fs.makeDirectory(primerDir, { recursive: true })
-
-        for (const file of primerConfig.files) {
-          const content = yield* fetchFile(`${primerName}/${file}`).pipe(
-            Effect.catchAll(() => Effect.succeed(null)),
-          )
-          if (content) {
-            const filePath = path.join(primerDir, file)
-            yield* fs.writeFileString(filePath, content)
-          }
-        }
-
         const meta = yield* readMeta(metaPath).pipe(
           Effect.provideService(FileSystem.FileSystem, fs),
         )
-        const timestamp = DateTime.formatIso(yield* DateTime.now)
-        const updatedMeta: Meta = {
-          ...meta,
-          primers: { ...meta.primers, [primerName]: { fetchedAt: timestamp } },
+        const existingEtags = meta.primers?.[primerName]?.etags ?? {}
+
+        const primerDir = path.join(basePath, primerName)
+        yield* fs.makeDirectory(primerDir, { recursive: true })
+
+        const newEtags: Record<string, { etag: string }> = { ...existingEtags }
+        let anyUpdated = false
+
+        for (const file of primerConfig.files) {
+          const cachedEtag = existingEtags[file]?.etag
+          const result = yield* fetchFile(`${primerName}/${file}`, cachedEtag).pipe(
+            Effect.catchAll(() => Effect.succeed(null)),
+          )
+          if (!result) continue
+          if ("notModified" in result) continue
+
+          anyUpdated = true
+          const filePath = path.join(primerDir, file)
+          yield* fs.writeFileString(filePath, result.content)
+          if (result.etag) {
+            newEtags[file] = { etag: result.etag }
+          }
         }
-        yield* writeMeta(metaPath, updatedMeta).pipe(
-          Effect.provideService(FileSystem.FileSystem, fs),
-        )
+
+        if (anyUpdated) {
+          const currentMeta = yield* readMeta(metaPath).pipe(
+            Effect.provideService(FileSystem.FileSystem, fs),
+          )
+          const timestamp = DateTime.formatIso(yield* DateTime.now)
+          const updatedMeta: Meta = {
+            ...currentMeta,
+            primers: {
+              ...currentMeta.primers,
+              [primerName]: { fetchedAt: timestamp, etags: newEtags },
+            },
+          }
+          yield* writeMeta(metaPath, updatedMeta).pipe(
+            Effect.provideService(FileSystem.FileSystem, fs),
+          )
+        }
       }).pipe(
         Effect.catchAll(() => Effect.void),
         Effect.asVoid,
@@ -178,23 +225,30 @@ export const PrimerCacheLive = Layer.effect(
           const primerConfig = manifestData.primers[primerName]
           if (!primerConfig) continue
 
+          const existingEtags = meta.primers?.[primerName]?.etags ?? {}
           const primerDir = path.join(basePath, primerName)
           yield* fs.makeDirectory(primerDir, { recursive: true })
 
-          let success = true
+          const newEtags: Record<string, { etag: string }> = { ...existingEtags }
+          let anyUpdated = false
+
           for (const file of primerConfig.files) {
-            const content = yield* fetchFile(`${primerName}/${file}`).pipe(
+            const cachedEtag = existingEtags[file]?.etag
+            const result = yield* fetchFile(`${primerName}/${file}`, cachedEtag).pipe(
               Effect.catchAll(() => Effect.succeed(null)),
             )
-            if (content) {
-              const filePath = path.join(primerDir, file)
-              yield* fs.writeFileString(filePath, content)
-            } else {
-              success = false
+            if (!result) continue
+            if ("notModified" in result) continue
+
+            anyUpdated = true
+            const filePath = path.join(primerDir, file)
+            yield* fs.writeFileString(filePath, result.content)
+            if (result.etag) {
+              newEtags[file] = { etag: result.etag }
             }
           }
 
-          if (success) {
+          if (anyUpdated) {
             refreshed.push(primerName)
             const currentMeta = yield* readMeta(metaPath).pipe(
               Effect.provideService(FileSystem.FileSystem, fs),
@@ -202,7 +256,10 @@ export const PrimerCacheLive = Layer.effect(
             const timestamp = DateTime.formatIso(yield* DateTime.now)
             const updatedMeta: Meta = {
               ...currentMeta,
-              primers: { ...currentMeta.primers, [primerName]: { fetchedAt: timestamp } },
+              primers: {
+                ...currentMeta.primers,
+                [primerName]: { fetchedAt: timestamp, etags: newEtags },
+              },
             }
             yield* writeMeta(metaPath, updatedMeta).pipe(
               Effect.provideService(FileSystem.FileSystem, fs),

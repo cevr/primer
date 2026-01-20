@@ -3,10 +3,18 @@ import { FileSystem } from "@effect/platform"
 import type { PlatformError } from "@effect/platform/Error"
 
 /**
+ * Schema for file ETag tracking.
+ */
+const FileEtagEntry = Schema.Struct({
+  etag: Schema.String,
+})
+
+/**
  * Schema for primer fetch metadata.
  */
 const PrimerMetaEntry = Schema.Struct({
   fetchedAt: Schema.String,
+  etags: Schema.optional(Schema.Record({ key: Schema.String, value: FileEtagEntry })),
 })
 
 /**
@@ -14,6 +22,7 @@ const PrimerMetaEntry = Schema.Struct({
  */
 export const MetaSchema = Schema.Struct({
   manifestFetchedAt: Schema.optional(Schema.String),
+  manifestEtag: Schema.optional(Schema.String),
   primers: Schema.optional(Schema.Record({ key: Schema.String, value: PrimerMetaEntry })),
 })
 

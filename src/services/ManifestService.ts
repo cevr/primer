@@ -1,5 +1,5 @@
-import { Context, DateTime, Effect, Layer, Schema, Config } from "effect"
-import { FileSystem, Path, HttpClient, HttpClientRequest } from "@effect/platform"
+import { Context, DateTime, Effect, Layer, Schema, Config, Option } from "effect"
+import { FileSystem, Path, HttpClient, HttpClientRequest, Headers } from "@effect/platform"
 import type { PlatformError } from "@effect/platform/Error"
 import { FetchError, ManifestError } from "../lib/errors.js"
 import { readMeta, writeMeta } from "../lib/meta.js"
@@ -55,6 +55,53 @@ export const ManifestServiceLive = Layer.effect(
 
     const fetchManifest = Effect.gen(function* () {
       const url = `${RAW_BASE}/primers/_manifest.json`
+
+      // Check for cached ETag
+      const meta = yield* readMeta(metaPath).pipe(Effect.provideService(FileSystem.FileSystem, fs))
+      const cachedEtag = meta.manifestEtag
+
+      const request = cachedEtag
+        ? HttpClientRequest.get(url).pipe(HttpClientRequest.setHeader("If-None-Match", cachedEtag))
+        : HttpClientRequest.get(url)
+
+      const response = yield* http.execute(request).pipe(
+        Effect.mapError((e) => new FetchError({ url, cause: e })),
+        Effect.scoped,
+      )
+
+      // Not modified - return cached
+      if (response.status === 304) {
+        const cached = yield* readCached
+        if (cached) return cached
+        // Fallback to fetch without etag if cache is missing
+        return yield* fetchManifestWithoutEtag
+      }
+
+      if (response.status !== 200) {
+        return yield* new FetchError({ url })
+      }
+
+      const text = yield* response.text.pipe(
+        Effect.mapError((e) => new FetchError({ url, cause: e })),
+      )
+
+      const parsed = yield* Schema.decode(ManifestFromJson)(text).pipe(
+        Effect.mapError((e) => new ManifestError({ cause: e })),
+      )
+
+      yield* fs.makeDirectory(basePath, { recursive: true })
+      yield* fs.writeFileString(manifestPath, text)
+
+      const etag = Option.getOrUndefined(Headers.get(response.headers, "etag"))
+      const timestamp = DateTime.formatIso(yield* DateTime.now)
+      const updatedMeta: Meta = { ...meta, manifestFetchedAt: timestamp, manifestEtag: etag }
+      yield* writeMeta(metaPath, updatedMeta).pipe(Effect.provideService(FileSystem.FileSystem, fs))
+
+      return parsed
+    })
+
+    const fetchManifestWithoutEtag = Effect.gen(function* () {
+      const url = `${RAW_BASE}/primers/_manifest.json`
       const response = yield* http.execute(HttpClientRequest.get(url)).pipe(
         Effect.mapError((e) => new FetchError({ url, cause: e })),
         Effect.scoped,
@@ -75,9 +122,10 @@ export const ManifestServiceLive = Layer.effect(
       yield* fs.makeDirectory(basePath, { recursive: true })
       yield* fs.writeFileString(manifestPath, text)
 
+      const etag = Option.getOrUndefined(Headers.get(response.headers, "etag"))
       const meta = yield* readMeta(metaPath).pipe(Effect.provideService(FileSystem.FileSystem, fs))
       const timestamp = DateTime.formatIso(yield* DateTime.now)
-      const updatedMeta: Meta = { ...meta, manifestFetchedAt: timestamp }
+      const updatedMeta: Meta = { ...meta, manifestFetchedAt: timestamp, manifestEtag: etag }
       yield* writeMeta(metaPath, updatedMeta).pipe(Effect.provideService(FileSystem.FileSystem, fs))
 
       return parsed
