@@ -4,8 +4,10 @@ pre-commit:
     typecheck:
       run: bun run typecheck
     lint:
-      run: bun run lint
+      run: bun run lint:fix
+      stage_fixed: true
     format:
-      run: bun run fmt:check
+      run: bun run fmt
+      stage_fixed: true
     test:
       run: bun run test
