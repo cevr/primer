@@ -30,6 +30,7 @@
     "fmt": "oxfmt .",
     "fmt:check": "oxfmt --check",
     "check": "bun run typecheck && bun run lint && bun run fmt:check",
+    "generate:manifest": "bun scripts/generate-manifest.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "prepare": "effect-language-service patch && lefthook install",

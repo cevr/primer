@@ -5,7 +5,6 @@
 ### Patch Changes
 
 - [`f992d5c`](https://github.com/cevr/primer/commit/f992d5ca7d16038d252eefa449a829655f39220c) Thanks [@cevr](https://github.com/cevr)! - fix(cli): address CLI audit issues
-
   - Exit codes: propagate failures instead of swallowing with catchAll
   - TTY detection: skip spinner when stdout is not a TTY
   - NO_COLOR support: respect NO_COLOR env var and TERM=dumb
