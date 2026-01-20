@@ -36,6 +36,14 @@ Run \`primer\` for current list with descriptions.
 
 const pathArgs = Args.text({ name: "path" }).pipe(Args.repeated)
 
+const fetchFlag = Options.boolean("fetch").pipe(
+  Options.withAlias("f"),
+  Options.withDescription("Force fetch latest content (default in non-TTY)"),
+  Options.withDefault(false),
+)
+
+const isTTY = (): boolean => process.stdout.isTTY === true
+
 const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
 
 const shouldShowSpinner = (): boolean =>
@@ -88,78 +96,88 @@ const helpDescription = HelpDoc.blocks([
   HelpDoc.p("  Install primer skill to AI tool directories"),
 ])
 
-export const primerCommand = Command.make("primer", { path: pathArgs }, ({ path }) =>
-  Effect.gen(function* () {
-    const cache = yield* PrimerCache
-    const manifestService = yield* ManifestService
+export const primerCommand = Command.make(
+  "primer",
+  { path: pathArgs, fetch: fetchFlag },
+  ({ path, fetch }) =>
+    Effect.gen(function* () {
+      const cache = yield* PrimerCache
+      const manifestService = yield* ManifestService
+      const tty = isTTY()
 
-    if (path.length === 0) {
-      const manifest = yield* withSpinner("Loading primers...", manifestService.get).pipe(
+      if (path.length === 0) {
+        const manifest = yield* withSpinner("Loading primers...", manifestService.get).pipe(
+          Effect.catchTag("ManifestError", (e) =>
+            Console.error("Failed to load primer manifest.").pipe(
+              Effect.andThen(Console.error("Check your network connection and try again.")),
+              Effect.andThen(Effect.fail(e)),
+            ),
+          ),
+        )
+
+        yield* manifestService.refresh.pipe(
+          Effect.catchAll(() => Effect.void),
+          Effect.forkDaemon,
+        )
+
+        const primerNames = Object.keys(manifest.primers).toSorted()
+
+        if (primerNames.length === 0) {
+          yield* Console.log("No primers available.")
+          return
+        }
+
+        yield* Console.log("Available primers:\n")
+        for (const name of primerNames) {
+          const config = manifest.primers[name]
+          if (!config) continue
+          const desc = config.description ? ` - ${config.description}` : ""
+          yield* Console.log(`  ${name}${desc}`)
+        }
+        return
+      }
+
+      // Handle "help" as a special case
+      if (path[0] === "help") {
+        yield* Console.log(HelpDoc.toAnsiText(helpDescription))
+        return
+      }
+
+      const primer = path[0]
+      if (!primer) return
+
+      const content = yield* cache.resolve(path).pipe(
+        Effect.catchTag("ContentNotFoundError", () =>
+          withSpinner(`Fetching ${primer}...`, cache.ensure(primer)).pipe(
+            Effect.andThen(cache.resolve(path)),
+          ),
+        ),
+        Effect.catchTag("ContentNotFoundError", (e) =>
+          Console.error(e.message).pipe(
+            Effect.andThen(Console.error("")),
+            Effect.andThen(Console.error("Run `primer` to see available primers.")),
+            Effect.andThen(Effect.fail(e)),
+          ),
+        ),
         Effect.catchTag("ManifestError", (e) =>
-          Console.error("Failed to load primer manifest.").pipe(
-            Effect.andThen(Console.error("Check your network connection and try again.")),
+          Console.error(`Failed to fetch primer: ${primer}`).pipe(
+            Effect.andThen(Console.error("")),
+            Effect.andThen(Console.error("Run `primer` to see available primers.")),
             Effect.andThen(Effect.fail(e)),
           ),
         ),
       )
 
-      yield* manifestService.refresh.pipe(
-        Effect.catchAll(() => Effect.void),
-        Effect.forkDaemon,
-      )
-
-      const primerNames = Object.keys(manifest.primers).toSorted()
-
-      if (primerNames.length === 0) {
-        yield* Console.log("No primers available.")
-        return
+      // TTY: background refresh (non-blocking)
+      // non-TTY: skip refresh (use cache) unless --fetch
+      if (tty) {
+        yield* cache.refreshInBackground(primer).pipe(Effect.forkDaemon)
+      } else if (fetch) {
+        yield* withSpinner(`Refreshing ${primer}...`, cache.refreshInBackground(primer))
       }
 
-      yield* Console.log("Available primers:\n")
-      for (const name of primerNames) {
-        const config = manifest.primers[name]
-        if (!config) continue
-        const desc = config.description ? ` - ${config.description}` : ""
-        yield* Console.log(`  ${name}${desc}`)
-      }
-      return
-    }
-
-    // Handle "help" as a special case
-    if (path[0] === "help") {
-      yield* Console.log(HelpDoc.toAnsiText(helpDescription))
-      return
-    }
-
-    const primer = path[0]
-    if (!primer) return
-
-    const content = yield* cache.resolve(path).pipe(
-      Effect.catchTag("ContentNotFoundError", () =>
-        withSpinner(`Fetching ${primer}...`, cache.ensure(primer)).pipe(
-          Effect.andThen(cache.resolve(path)),
-        ),
-      ),
-      Effect.catchTag("ContentNotFoundError", (e) =>
-        Console.error(e.message).pipe(
-          Effect.andThen(Console.error("")),
-          Effect.andThen(Console.error("Run `primer` to see available primers.")),
-          Effect.andThen(Effect.fail(e)),
-        ),
-      ),
-      Effect.catchTag("ManifestError", (e) =>
-        Console.error(`Failed to fetch primer: ${primer}`).pipe(
-          Effect.andThen(Console.error("")),
-          Effect.andThen(Console.error("Run `primer` to see available primers.")),
-          Effect.andThen(Effect.fail(e)),
-        ),
-      ),
-    )
-
-    yield* cache.refreshInBackground(primer).pipe(Effect.forkDaemon)
-
-    yield* Console.log(content)
-  }).pipe(Effect.withSpan("primerCommand")),
+      yield* Console.log(content)
+    }).pipe(Effect.withSpan("primerCommand")),
 ).pipe(Command.withDescription(helpDescription))
 
 const localFlag = Options.boolean("local").pipe(

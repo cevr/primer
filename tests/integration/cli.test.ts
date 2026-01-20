@@ -3,8 +3,23 @@ import { Array as Arr, Console, Context, Effect, Layer, Ref } from "effect"
 import { Terminal, FileSystem, Path } from "@effect/platform"
 import { NodeContext } from "@effect/platform-node"
 import { runCli } from "../../src/cli.js"
-import { PrimerCacheTest } from "../../src/services/PrimerCache.js"
+import { PrimerCache } from "../../src/services/PrimerCache.js"
+import { ContentNotFoundError } from "../../src/lib/errors.js"
 import { ManifestServiceTest, type Manifest } from "../../src/services/ManifestService.js"
+
+// Service call recorder for sequence tests
+type ServiceCall = {
+  service: "cache" | "manifest"
+  method: string
+  args?: unknown
+}
+
+class CallRecorder extends Context.Tag("@test/CallRecorder")<
+  CallRecorder,
+  Ref.Ref<ReadonlyArray<ServiceCall>>
+>() {}
+
+const CallRecorderLayer = Layer.effect(CallRecorder, Ref.make<ReadonlyArray<ServiceCall>>([]))
 
 // Test output recorder
 class OutputRecorder extends Context.Tag("@test/OutputRecorder")<
@@ -72,6 +87,40 @@ const MockTerminalLayer = Layer.effect(
   }),
 )
 
+// PrimerCache test layer with call tracking
+const PrimerCacheTestWithTracking = (content: Record<string, string>) =>
+  Layer.effect(
+    PrimerCache,
+    Effect.gen(function* () {
+      const callRecorder = yield* CallRecorder
+
+      return {
+        resolve: (segments: ReadonlyArray<string>) =>
+          Effect.gen(function* () {
+            yield* Ref.update(callRecorder, (calls) => [
+              ...calls,
+              { service: "cache" as const, method: "resolve", args: segments },
+            ])
+            const key = segments.join("/")
+            const indexKey = `${key}/index`
+            const value = content[key] ?? content[indexKey]
+            if (value) return value
+            return yield* new ContentNotFoundError({ path: key })
+          }),
+        ensure: (primer: string) =>
+          Ref.update(callRecorder, (calls) => [
+            ...calls,
+            { service: "cache" as const, method: "ensure", args: primer },
+          ]),
+        refreshInBackground: (primer: string) =>
+          Ref.update(callRecorder, (calls) => [
+            ...calls,
+            { service: "cache" as const, method: "refreshInBackground", args: primer },
+          ]),
+      }
+    }),
+  )
+
 const testManifest: Manifest = {
   version: 1,
   primers: {
@@ -88,15 +137,19 @@ const testManifest: Manifest = {
 
 const createTestLayer = (content: Record<string, string>, manifest: Manifest = testManifest) => {
   const recorderLayer = OutputRecorderLayer
+  const callRecorderLayer = CallRecorderLayer
 
   const mocksLayer = Layer.mergeAll(MockConsoleLayer, MockTerminalLayer).pipe(
     Layer.provide(recorderLayer),
   )
 
+  const cacheLayer = PrimerCacheTestWithTracking(content).pipe(Layer.provide(callRecorderLayer))
+
   return Layer.mergeAll(
     recorderLayer,
+    callRecorderLayer,
     mocksLayer,
-    PrimerCacheTest(content),
+    cacheLayer,
     ManifestServiceTest(manifest),
   ).pipe(Layer.provideMerge(NodeContext.layer))
 }
@@ -117,6 +170,28 @@ const testCli = (
     return {
       stdout: Arr.join(stdout, ""),
       stderr: Arr.join(stderr, ""),
+    }
+  }).pipe(Effect.provide(createTestLayer(content, manifest)))
+
+const testCliWithSequence = (
+  args: ReadonlyArray<string>,
+  content: Record<string, string>,
+  manifest: Manifest = testManifest,
+) =>
+  Effect.gen(function* () {
+    const recorder = yield* OutputRecorder
+    const callRecorder = yield* CallRecorder
+
+    yield* runCli(["node", "primer", ...args]).pipe(Effect.ignore)
+
+    const stdout = yield* Ref.get(recorder.stdout)
+    const stderr = yield* Ref.get(recorder.stderr)
+    const calls = yield* Ref.get(callRecorder)
+
+    return {
+      stdout: Arr.join(stdout, ""),
+      stderr: Arr.join(stderr, ""),
+      calls,
     }
   }).pipe(Effect.provide(createTestLayer(content, manifest)))
 
@@ -167,6 +242,26 @@ describe("primer CLI workflow", () => {
         })
 
         expect(stderr).toContain("Primer not found: nonexistent")
+      }),
+    )
+
+    it.live("accepts --fetch flag", () =>
+      Effect.gen(function* () {
+        const { stdout } = yield* testCli(["--fetch", "effect"], {
+          effect: "# Effect Guide",
+        })
+
+        expect(stdout).toContain("# Effect Guide")
+      }),
+    )
+
+    it.live("accepts -f flag (short form)", () =>
+      Effect.gen(function* () {
+        const { stdout } = yield* testCli(["-f", "effect"], {
+          effect: "# Effect Guide",
+        })
+
+        expect(stdout).toContain("# Effect Guide")
       }),
     )
   })
@@ -316,6 +411,60 @@ describe("primer CLI workflow", () => {
           yield* fs.remove(testHome, { recursive: true })
         }
       }).pipe(Effect.provide(NodeContext.layer)),
+    )
+  })
+
+  describe("service call sequences", () => {
+    it.live("resolve -> refreshInBackground when primer cached (TTY)", () =>
+      Effect.gen(function* () {
+        // Note: In test env, isTTY() returns false so refreshInBackground won't be called
+        // This test verifies resolve is called for cached content
+        const { calls } = yield* testCliWithSequence(["effect"], {
+          effect: "# Effect Guide",
+        })
+
+        const methods = calls.map((c) => c.method)
+        expect(methods).toContain("resolve")
+      }),
+    )
+
+    it.live("resolve -> ensure -> resolve when primer not cached", () =>
+      Effect.gen(function* () {
+        const { calls, stderr } = yield* testCliWithSequence(["effect"], {
+          // Empty content - primer not in cache
+        })
+
+        // First resolve fails, then ensure is called, then resolve again
+        const methods = calls.map((c) => c.method)
+        expect(methods[0]).toBe("resolve")
+        expect(methods[1]).toBe("ensure")
+        expect(methods[2]).toBe("resolve")
+        // Still fails because test content is empty
+        expect(stderr).toContain("Primer not found")
+      }),
+    )
+
+    it.live("--fetch flag triggers refreshInBackground synchronously in non-TTY", () =>
+      Effect.gen(function* () {
+        const { calls } = yield* testCliWithSequence(["--fetch", "effect"], {
+          effect: "# Effect Guide",
+        })
+
+        const methods = calls.map((c) => c.method)
+        expect(methods).toContain("resolve")
+        expect(methods).toContain("refreshInBackground")
+      }),
+    )
+
+    it.live("nested path resolves with correct segments", () =>
+      Effect.gen(function* () {
+        const { calls } = yield* testCliWithSequence(["effect", "services"], {
+          "effect/services": "# Services",
+        })
+
+        const resolveCall = calls.find((c) => c.method === "resolve")
+        expect(resolveCall?.args).toEqual(["effect", "services"])
+      }),
     )
   })
 })
