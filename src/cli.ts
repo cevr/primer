@@ -246,25 +246,6 @@ const initCommand = Command.make("init", { local: localFlag }, ({ local }) =>
       { path: pathService.join(home, ".config", "opencode", "skills", "primer"), file: "SKILL.md" },
     ]
 
-    // Old format locations to clean up (skills/primer.md)
-    const oldProjectFiles = [
-      pathService.join(cwd, ".claude", "skills", "primer.md"),
-      pathService.join(cwd, ".cursor", "skills", "primer.md"),
-    ]
-    const oldUserFiles = [
-      pathService.join(home, ".claude", "skills", "primer.md"),
-      pathService.join(home, ".cursor", "skills", "primer.md"),
-    ]
-    const oldFiles = local ? oldProjectFiles : oldUserFiles
-
-    // Clean up old format files
-    for (const oldFile of oldFiles) {
-      if (yield* fs.exists(oldFile)) {
-        yield* fs.remove(oldFile)
-        yield* Console.log(`Removed old format: ${oldFile}`)
-      }
-    }
-
     const candidates = local ? projectDirs : userDirs
 
     // Find parent skills dirs that exist
