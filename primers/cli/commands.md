@@ -6,17 +6,18 @@ Good command naming is poetry: short, memorable, obvious.
 
 ### Principles
 
-| Guideline | Good | Bad |
-|-----------|------|-----|
-| Short (1-2 syllables) | `run`, `build` | `execute`, `compile-and-bundle` |
-| Lowercase only | `deploy` | `Deploy`, `DEPLOY` |
-| No shift key | `ls` | `LS` |
-| Memorable | `push`, `pull` | `upload`, `download` |
-| Avoid generic names | `myapp-convert` | `convert` (conflicts!) |
+| Guideline             | Good            | Bad                             |
+| --------------------- | --------------- | ------------------------------- |
+| Short (1-2 syllables) | `run`, `build`  | `execute`, `compile-and-bundle` |
+| Lowercase only        | `deploy`        | `Deploy`, `DEPLOY`              |
+| No shift key          | `ls`            | `LS`                            |
+| Memorable             | `push`, `pull`  | `upload`, `download`            |
+| Avoid generic names   | `myapp-convert` | `convert` (conflicts!)          |
 
 ### Name Conflicts to Avoid
 
 These names are taken or ambiguous:
+
 - `test` - shell built-in
 - `convert` - ImageMagick
 - `install` - common
@@ -73,11 +74,11 @@ Run 'mycli users:<command> --help' for details.
 ### The Rule
 
 | Arguments | Assessment |
-|-----------|------------|
-| 0 | Perfect |
-| 1 | Acceptable |
-| 2 | Suspicious |
-| 3+ | Never |
+| --------- | ---------- |
+| 0         | Perfect    |
+| 1         | Acceptable |
+| 2         | Suspicious |
+| 3+        | Never      |
 
 ### Why Flags > Arguments
 
@@ -100,15 +101,15 @@ $ copy --from source.txt --to dest.txt --backup-dir backup/
 
 Every CLI should support:
 
-| Flag | Meaning | Notes |
-|------|---------|-------|
-| `-h`, `--help` | Show help | Reserved - never use for anything else |
-| `-v`, `--verbose` | More output | Can stack: `-vvv` |
-| `-q`, `--quiet` | Less output | Opposite of verbose |
-| `--version` | Show version | Also `-V` or `version` subcommand |
-| `--json` | JSON output | For scripting |
-| `--no-color` | Disable colors | Also respect `NO_COLOR` env |
-| `--debug` | Debug mode | Extra diagnostics |
+| Flag              | Meaning        | Notes                                  |
+| ----------------- | -------------- | -------------------------------------- |
+| `-h`, `--help`    | Show help      | Reserved - never use for anything else |
+| `-v`, `--verbose` | More output    | Can stack: `-vvv`                      |
+| `-q`, `--quiet`   | Less output    | Opposite of verbose                    |
+| `--version`       | Show version   | Also `-V` or `version` subcommand      |
+| `--json`          | JSON output    | For scripting                          |
+| `--no-color`      | Disable colors | Also respect `NO_COLOR` env            |
+| `--debug`         | Debug mode     | Extra diagnostics                      |
 
 ### Boolean Flag Patterns
 

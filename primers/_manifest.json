@@ -23,13 +23,7 @@
     },
     "primer": {
       "description": "How to write effective primers for AI agents",
-      "files": [
-        "index.md",
-        "structure.md",
-        "progressive.md",
-        "decision-trees.md",
-        "gotchas.md"
-      ]
+      "files": ["index.md", "structure.md", "progressive.md", "decision-trees.md", "gotchas.md"]
     },
     "cli": {
       "description": "CLI design, UX, and best practices",

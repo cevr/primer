@@ -36,42 +36,39 @@ Result: `timeout=10` (flag), `log_level=debug` (project)
 
 Follow XDG on Unix. Users expect their configs in standard places.
 
-| Purpose | XDG Variable | Default | macOS Alternative |
-|---------|--------------|---------|-------------------|
-| Config | `$XDG_CONFIG_HOME` | `~/.config` | `~/Library/Application Support` |
-| Data | `$XDG_DATA_HOME` | `~/.local/share` | `~/Library/Application Support` |
-| Cache | `$XDG_CACHE_HOME` | `~/.cache` | `~/Library/Caches` |
-| State | `$XDG_STATE_HOME` | `~/.local/state` | `~/Library/Application Support` |
+| Purpose | XDG Variable       | Default          | macOS Alternative               |
+| ------- | ------------------ | ---------------- | ------------------------------- |
+| Config  | `$XDG_CONFIG_HOME` | `~/.config`      | `~/Library/Application Support` |
+| Data    | `$XDG_DATA_HOME`   | `~/.local/share` | `~/Library/Application Support` |
+| Cache   | `$XDG_CACHE_HOME`  | `~/.cache`       | `~/Library/Caches`              |
+| State   | `$XDG_STATE_HOME`  | `~/.local/state` | `~/Library/Application Support` |
 
 ### Platform-Specific Paths
 
 ```javascript
 function getConfigPath(appName) {
-  if (process.platform === 'win32') {
-    return path.join(process.env.APPDATA, appName);
+  if (process.platform === "win32") {
+    return path.join(process.env.APPDATA, appName)
   }
-  if (process.platform === 'darwin') {
+  if (process.platform === "darwin") {
     // Prefer XDG if set, otherwise use macOS convention
     return process.env.XDG_CONFIG_HOME
       ? path.join(process.env.XDG_CONFIG_HOME, appName)
-      : path.join(os.homedir(), 'Library', 'Application Support', appName);
+      : path.join(os.homedir(), "Library", "Application Support", appName)
   }
   // Linux/Unix
-  return path.join(
-    process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config'),
-    appName
-  );
+  return path.join(process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config"), appName)
 }
 ```
 
 ### Full Platform Matrix
 
-| Type | Linux | macOS | Windows |
-|------|-------|-------|---------|
-| Config | `~/.config/app` | `~/Library/Application Support/app` | `%APPDATA%\app` |
-| Data | `~/.local/share/app` | `~/Library/Application Support/app` | `%LOCALAPPDATA%\app` |
-| Cache | `~/.cache/app` | `~/Library/Caches/app` | `%LOCALAPPDATA%\app\cache` |
-| Logs | `~/.local/state/app` | `~/Library/Logs/app` | `%LOCALAPPDATA%\app\logs` |
+| Type   | Linux                | macOS                               | Windows                    |
+| ------ | -------------------- | ----------------------------------- | -------------------------- |
+| Config | `~/.config/app`      | `~/Library/Application Support/app` | `%APPDATA%\app`            |
+| Data   | `~/.local/share/app` | `~/Library/Application Support/app` | `%LOCALAPPDATA%\app`       |
+| Cache  | `~/.cache/app`       | `~/Library/Caches/app`              | `%LOCALAPPDATA%\app\cache` |
+| Logs   | `~/.local/state/app` | `~/Library/Logs/app`                | `%LOCALAPPDATA%\app\logs`  |
 
 ## Project Configuration
 
@@ -90,6 +87,7 @@ Walk up directory tree to find project config:
 ### Project Config Files
 
 Support multiple names:
+
 - `.mycli.yaml` / `.mycli.yml`
 - `mycli.config.yaml`
 - `.myclirc`

@@ -213,14 +213,14 @@ Next steps:
 
 ## In-CLI vs Web Docs
 
-| Content | In-CLI Help | Web Docs |
-|---------|-------------|----------|
-| Quick reference | ✓ | ✓ |
-| Examples | ✓ (2-3) | ✓ (comprehensive) |
-| Flag descriptions | ✓ (brief) | ✓ (detailed) |
-| Tutorials | Link only | ✓ |
-| Architecture | ✗ | ✓ |
-| Troubleshooting | ✗ | ✓ |
+| Content           | In-CLI Help | Web Docs          |
+| ----------------- | ----------- | ----------------- |
+| Quick reference   | ✓           | ✓                 |
+| Examples          | ✓ (2-3)     | ✓ (comprehensive) |
+| Flag descriptions | ✓ (brief)   | ✓ (detailed)      |
+| Tutorials         | Link only   | ✓                 |
+| Architecture      | ✗           | ✓                 |
+| Troubleshooting   | ✗           | ✓                 |
 
 ### Link to Web Docs
 
@@ -288,18 +288,23 @@ Your README should include:
 
 ```markdown
 ## Quick Start
+
 $ mycli init
 $ mycli deploy
 
 ## Installation
+
 [Package manager commands]
 
 ## Common Commands
+
 [Most-used commands with examples]
 
 ## Configuration
+
 [Config file locations, environment variables]
 
 ## Full Documentation
+
 [Link to docs site]
 ```

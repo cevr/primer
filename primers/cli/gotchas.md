@@ -410,6 +410,7 @@ $ mycli completion fish >> ~/.config/fish/completions/mycli.fish
 ### Testing Only Happy Path
 
 Test these too:
+
 - Error messages (are they helpful?)
 - Exit codes (correct for each failure type?)
 - Non-TTY output (no ANSI codes?)

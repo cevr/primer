@@ -26,32 +26,32 @@ What are you designing?
 
 ## Topic Index
 
-| Topic | File | Key Points |
-|-------|------|------------|
-| UX Philosophy | [design.md](design.md) | 100ms rule, progress, Ctrl-C, prompts |
+| Topic            | File                       | Key Points                              |
+| ---------------- | -------------------------- | --------------------------------------- |
+| UX Philosophy    | [design.md](design.md)     | 100ms rule, progress, Ctrl-C, prompts   |
 | Commands & Flags | [commands.md](commands.md) | Naming, args vs flags, `--` passthrough |
-| Help Text | [help.md](help.md) | Lead with examples, all help forms work |
-| Output | [output.md](output.md) | TTY detection, colors, tables, streams |
-| Errors | [errors.md](errors.md) | Anatomy of great errors, recovery |
-| Config | [config.md](config.md) | Precedence, XDG spec, credentials |
-| Anti-patterns | [gotchas.md](gotchas.md) | Common mistakes to avoid |
+| Help Text        | [help.md](help.md)         | Lead with examples, all help forms work |
+| Output           | [output.md](output.md)     | TTY detection, colors, tables, streams  |
+| Errors           | [errors.md](errors.md)     | Anatomy of great errors, recovery       |
+| Config           | [config.md](config.md)     | Precedence, XDG spec, credentials       |
+| Anti-patterns    | [gotchas.md](gotchas.md)   | Common mistakes to avoid                |
 
 ## 12-Factor CLI (Quick Reference)
 
-| # | Principle | Summary |
-|---|-----------|---------|
-| 1 | Great help | In-CLI + web; examples essential |
-| 2 | Prefer flags to args | 1 arg ok, 2 suspect, 3 never |
-| 3 | Version accessible | `--version`, `-V`, `version` |
-| 4 | Mind the streams | stdout = data, stderr = messages |
-| 5 | Handle errors well | Code + title + fix + URL |
-| 6 | Be fancy | Colors/spinners, but respect TTY |
-| 7 | Prompt if you can | Interactive when TTY; flag override |
-| 8 | Use tables | Grep-friendly; `--json`; `--columns` |
-| 9 | Be speedy | <100ms ideal, spinner if slow |
-| 10 | Encourage contributions | License, contributing guide |
-| 11 | Clear subcommands | `topic:command`; help on empty |
-| 12 | Follow XDG-spec | Proper config/data/cache paths |
+| #   | Principle               | Summary                              |
+| --- | ----------------------- | ------------------------------------ |
+| 1   | Great help              | In-CLI + web; examples essential     |
+| 2   | Prefer flags to args    | 1 arg ok, 2 suspect, 3 never         |
+| 3   | Version accessible      | `--version`, `-V`, `version`         |
+| 4   | Mind the streams        | stdout = data, stderr = messages     |
+| 5   | Handle errors well      | Code + title + fix + URL             |
+| 6   | Be fancy                | Colors/spinners, but respect TTY     |
+| 7   | Prompt if you can       | Interactive when TTY; flag override  |
+| 8   | Use tables              | Grep-friendly; `--json`; `--columns` |
+| 9   | Be speedy               | <100ms ideal, spinner if slow        |
+| 10  | Encourage contributions | License, contributing guide          |
+| 11  | Clear subcommands       | `topic:command`; help on empty       |
+| 12  | Follow XDG-spec         | Proper config/data/cache paths       |
 
 ## The Unix Philosophy (Still Relevant)
 

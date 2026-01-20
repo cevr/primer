@@ -4,10 +4,10 @@ Stdout is for data. Stderr is for humans. Colors are for TTYs.
 
 ## The Streams
 
-| Stream | Purpose | Examples |
-|--------|---------|----------|
+| Stream | Purpose               | Examples                                     |
+| ------ | --------------------- | -------------------------------------------- |
 | stdout | Program output (data) | Query results, generated content, piped data |
-| stderr | Human messaging | Progress, errors, warnings, debug info |
+| stderr | Human messaging       | Progress, errors, warnings, debug info       |
 
 ### Why This Matters
 
@@ -75,14 +75,14 @@ $ mycli users list --json
 
 ### When to Use Color
 
-| Use | Color | Example |
-|-----|-------|---------|
-| Success | Green | `✓ Deployed successfully` |
-| Error | Red | `✗ Build failed` |
-| Warning | Yellow | `⚠ Deprecated flag` |
-| Info | Blue/Cyan | `→ Connecting...` |
-| Emphasis | Bold | `**Important**` |
-| Dimmed | Gray | Secondary info |
+| Use      | Color     | Example                   |
+| -------- | --------- | ------------------------- |
+| Success  | Green     | `✓ Deployed successfully` |
+| Error    | Red       | `✗ Build failed`          |
+| Warning  | Yellow    | `⚠ Deprecated flag`       |
+| Info     | Blue/Cyan | `→ Connecting...`         |
+| Emphasis | Bold      | `**Important**`           |
+| Dimmed   | Gray      | Secondary info            |
 
 ### Respecting User Preferences
 
@@ -98,13 +98,13 @@ Check in order:
 
 ```javascript
 function shouldUseColor() {
-  if (flags.noColor) return false;
-  if (flags.color) return true;
-  if (process.env.NO_COLOR !== undefined) return false;
-  if (process.env.FORCE_COLOR !== undefined) return true;
-  if (process.env.TERM === 'dumb') return false;
-  if (!process.stdout.isTTY) return false;
-  return true;
+  if (flags.noColor) return false
+  if (flags.color) return true
+  if (process.env.NO_COLOR !== undefined) return false
+  if (process.env.FORCE_COLOR !== undefined) return true
+  if (process.env.TERM === "dumb") return false
+  if (!process.stdout.isTTY) return false
+  return true
 }
 ```
 

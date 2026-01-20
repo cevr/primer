@@ -20,13 +20,13 @@ More info: https://mycli.dev/docs/errors/EACCES
 
 ### The Five Components
 
-| Component | Purpose | Example |
-|-----------|---------|---------|
-| Code | Unique identifier | `EACCES`, `E001`, `AUTH_FAILED` |
-| Title | Brief summary | `Permission denied` |
-| Description | What happened | `Could not write to /etc/mycli/config.yaml` |
-| Fix | How to resolve | `Run with sudo or change ownership` |
-| URL | Deep dive | `https://mycli.dev/docs/errors/EACCES` |
+| Component   | Purpose           | Example                                     |
+| ----------- | ----------------- | ------------------------------------------- |
+| Code        | Unique identifier | `EACCES`, `E001`, `AUTH_FAILED`             |
+| Title       | Brief summary     | `Permission denied`                         |
+| Description | What happened     | `Could not write to /etc/mycli/config.yaml` |
+| Fix         | How to resolve    | `Run with sudo or change ownership`         |
+| URL         | Deep dive         | `https://mycli.dev/docs/errors/EACCES`      |
 
 ## Error Message Guidelines
 
@@ -82,15 +82,15 @@ Usage:
 
 ## Exit Codes
 
-| Code | Meaning | Use For |
-|------|---------|---------|
-| 0 | Success | Everything worked |
-| 1 | General error | Catch-all failures |
-| 2 | Misuse | Invalid args, bad flags |
-| 126 | Not executable | Permission issues |
-| 127 | Not found | Command doesn't exist |
-| 128+ | Signal | 128 + signal number |
-| 130 | Ctrl-C | User interrupted (128+2) |
+| Code | Meaning        | Use For                  |
+| ---- | -------------- | ------------------------ |
+| 0    | Success        | Everything worked        |
+| 1    | General error  | Catch-all failures       |
+| 2    | Misuse         | Invalid args, bad flags  |
+| 126  | Not executable | Permission issues        |
+| 127  | Not found      | Command doesn't exist    |
+| 128+ | Signal         | 128 + signal number      |
+| 130  | Ctrl-C         | User interrupted (128+2) |
 
 ### Meaningful Exit Codes
 
@@ -120,14 +120,14 @@ EXIT CODES
 
 ### Common Error Translations
 
-| Raw Error | Human Error |
-|-----------|-------------|
-| `ENOENT` | File not found |
-| `EACCES` | Permission denied |
-| `ECONNREFUSED` | Could not connect |
-| `ETIMEDOUT` | Connection timed out |
-| `ENOTFOUND` | Host not found |
-| `EPERM` | Operation not permitted |
+| Raw Error      | Human Error             |
+| -------------- | ----------------------- |
+| `ENOENT`       | File not found          |
+| `EACCES`       | Permission denied       |
+| `ECONNREFUSED` | Could not connect       |
+| `ETIMEDOUT`    | Connection timed out    |
+| `ENOTFOUND`    | Host not found          |
+| `EPERM`        | Operation not permitted |
 
 ```
 # Bad - raw error
@@ -299,10 +299,10 @@ Did you mean?
 
 ## Warning vs Error
 
-| Type | Exit Code | When to Use |
-|------|-----------|-------------|
-| Warning | 0 | Potential issue, but operation succeeded |
-| Error | Non-zero | Operation failed |
+| Type    | Exit Code | When to Use                              |
+| ------- | --------- | ---------------------------------------- |
+| Warning | 0         | Potential issue, but operation succeeded |
+| Error   | Non-zero  | Operation failed                         |
 
 ```
 # Warning - succeeded but concerning

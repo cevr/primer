@@ -4,14 +4,14 @@ The best CLIs feel instantaneous, stay out of your way, and help you recover whe
 
 ## The 100ms Rule
 
-| Response Time | Perception | Action |
-|--------------|------------|--------|
-| <100ms | Instantaneous | Ideal target |
-| 100-500ms | Slight delay | Acceptable |
-| 500ms-2s | Noticeable | Show spinner |
-| >2s | Slow | Progress bar with ETA |
+| Response Time | Perception    | Action                |
+| ------------- | ------------- | --------------------- |
+| <100ms        | Instantaneous | Ideal target          |
+| 100-500ms     | Slight delay  | Acceptable            |
+| 500ms-2s      | Noticeable    | Show spinner          |
+| >2s           | Slow          | Progress bar with ETA |
 
-**Key insight**: Print *something* within 100ms, even if work continues.
+**Key insight**: Print _something_ within 100ms, even if work continues.
 
 ```
 # Bad - appears frozen
@@ -30,12 +30,12 @@ Deploying to production...
 
 ### When to Use What
 
-| Duration | Indicator | Example |
-|----------|-----------|---------|
-| <500ms | Nothing | Quick lookups |
-| 500ms-5s | Spinner | API calls |
-| >5s | Progress bar | File uploads, builds |
-| Unknown | Spinner + status | Network operations |
+| Duration | Indicator        | Example              |
+| -------- | ---------------- | -------------------- |
+| <500ms   | Nothing          | Quick lookups        |
+| 500ms-5s | Spinner          | API calls            |
+| >5s      | Progress bar     | File uploads, builds |
+| Unknown  | Spinner + status | Network operations   |
 
 ### Progress Bar Anatomy
 
@@ -199,21 +199,21 @@ Use --i-know-what-im-doing to override.
 
 ### When to Use Each
 
-| Level | Use Case |
-|-------|----------|
-| None | Safe, reversible operations |
-| y/N | Mildly destructive, recoverable |
-| Type to confirm | Destructive, hard to recover |
-| Require flag | Catastrophic, no recovery |
+| Level           | Use Case                        |
+| --------------- | ------------------------------- |
+| None            | Safe, reversible operations     |
+| y/N             | Mildly destructive, recoverable |
+| Type to confirm | Destructive, hard to recover    |
+| Require flag    | Catastrophic, no recovery       |
 
 ## Signal Handling
 
-| Signal | Meaning | Response |
-|--------|---------|----------|
-| SIGINT (Ctrl-C) | User interrupt | Clean exit, print partial results |
-| SIGTERM | Terminate request | Graceful shutdown |
-| SIGPIPE | Output closed | Exit silently (don't error) |
-| SIGHUP | Terminal closed | Continue or clean exit |
+| Signal          | Meaning           | Response                          |
+| --------------- | ----------------- | --------------------------------- |
+| SIGINT (Ctrl-C) | User interrupt    | Clean exit, print partial results |
+| SIGTERM         | Terminate request | Graceful shutdown                 |
+| SIGPIPE         | Output closed     | Exit silently (don't error)       |
+| SIGHUP          | Terminal closed   | Continue or clean exit            |
 
 ## Timing Feedback
 
@@ -231,6 +231,7 @@ Deployed in 45s
 ```
 
 Helps users:
+
 - Know if something is slower than usual
 - Compare optimization attempts
 - Set expectations for CI/CD
