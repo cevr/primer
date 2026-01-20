@@ -13,5 +13,4 @@ pre-commit:
       run: bun run test
     manifest:
       glob: "primers/**/*.md"
-      run: bun run generate:manifest
-      stage_fixed: true
+      run: bun run generate:manifest && git add primers/_manifest.json
