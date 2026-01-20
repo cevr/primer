@@ -20,7 +20,7 @@
   },
   "scripts": {
     "dev": "bun run src/main.ts",
-    "build": "bun build src/main.ts --compile --outfile bin/primer",
+    "build": "bun build src/main.ts --compile --no-compile-autoload-dotenv --no-compile-autoload-bunfig --outfile bin/primer",
     "postinstall": "bun run build",
     "install:global": "ln -sf $(pwd)/bin/primer $(bun pm bin -g)/primer",
     "uninstall:global": "rm -f $(bun pm bin -g)/primer",
