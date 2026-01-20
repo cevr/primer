@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@effect/vitest"
 import { Array as Arr, Console, Context, Effect, Layer, Ref } from "effect"
-import { Terminal } from "@effect/platform"
+import { Terminal, FileSystem, Path } from "@effect/platform"
 import { NodeContext } from "@effect/platform-node"
 import { runCli } from "../../src/cli.js"
 import { PrimerCacheTest } from "../../src/services/PrimerCache.js"
@@ -130,9 +130,9 @@ describe("primer CLI workflow", () => {
         })
 
         expect(stdout).toContain("Available primers:")
-        expect(stdout).toContain("primer effect")
+        expect(stdout).toContain("effect")
         expect(stdout).toContain("Effect TypeScript patterns")
-        expect(stdout).toContain("primer oxlint")
+        expect(stdout).toContain("oxlint")
       }),
     )
   })
@@ -178,6 +178,144 @@ describe("primer CLI workflow", () => {
 
         expect(stdout).toContain("primer")
       }),
+    )
+  })
+
+  describe("primer init", () => {
+    it.live("creates skill file in project .claude/skills by default with --local", () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem
+        const path = yield* Path.Path
+        const testDir = yield* Effect.sync(() => `/tmp/primer-test-${Date.now()}`)
+        const skillsDir = path.join(testDir, ".claude", "skills")
+        const skillPath = path.join(skillsDir, "primer.md")
+
+        // Create test directory
+        yield* fs.makeDirectory(testDir, { recursive: true })
+
+        // Change to test directory and run init --local
+        const originalCwd = process.cwd()
+        process.chdir(testDir)
+
+        try {
+          const { stdout } = yield* testCli(["init", "--local"], {})
+
+          expect(stdout).toContain("Created:")
+          expect(stdout).toContain(skillPath)
+
+          // Verify file exists
+          const exists = yield* fs.exists(skillPath)
+          expect(exists).toBe(true)
+
+          // Verify content
+          const content = yield* fs.readFileString(skillPath)
+          expect(content).toContain("# Primer CLI Skill")
+        } finally {
+          process.chdir(originalCwd)
+          yield* fs.remove(testDir, { recursive: true })
+        }
+      }).pipe(Effect.provide(NodeContext.layer)),
+    )
+
+    it.live("reports if skill already exists", () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem
+        const path = yield* Path.Path
+        const testDir = yield* Effect.sync(() => `/tmp/primer-test-${Date.now()}`)
+        const skillsDir = path.join(testDir, ".claude", "skills")
+        const skillPath = path.join(skillsDir, "primer.md")
+
+        // Create test directory with existing skill
+        yield* fs.makeDirectory(skillsDir, { recursive: true })
+        yield* fs.writeFileString(skillPath, "existing content")
+
+        const originalCwd = process.cwd()
+        process.chdir(testDir)
+
+        try {
+          const { stdout } = yield* testCli(["init", "--local"], {})
+
+          expect(stdout).toContain("Already exists:")
+          expect(stdout).toContain(skillPath)
+        } finally {
+          process.chdir(originalCwd)
+          yield* fs.remove(testDir, { recursive: true })
+        }
+      }).pipe(Effect.provide(NodeContext.layer)),
+    )
+
+    it.live("creates in all existing skills dirs with --local", () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem
+        const path = yield* Path.Path
+        const testDir = yield* Effect.sync(() => `/tmp/primer-test-${Date.now()}`)
+        const claudeSkillsDir = path.join(testDir, ".claude", "skills")
+        const cursorSkillsDir = path.join(testDir, ".cursor", "skills")
+        const claudeSkillPath = path.join(claudeSkillsDir, "primer.md")
+        const cursorSkillPath = path.join(cursorSkillsDir, "primer.md")
+
+        // Create both .claude/skills and .cursor/skills
+        yield* fs.makeDirectory(claudeSkillsDir, { recursive: true })
+        yield* fs.makeDirectory(cursorSkillsDir, { recursive: true })
+
+        const originalCwd = process.cwd()
+        process.chdir(testDir)
+
+        try {
+          const { stdout } = yield* testCli(["init", "--local"], {})
+
+          expect(stdout).toContain("Created:")
+          expect(stdout).toContain(claudeSkillPath)
+          expect(stdout).toContain(cursorSkillPath)
+          expect(stdout).toContain("Created 2 skill file(s)")
+
+          // Verify both files exist
+          const claudeExists = yield* fs.exists(claudeSkillPath)
+          const cursorExists = yield* fs.exists(cursorSkillPath)
+          expect(claudeExists).toBe(true)
+          expect(cursorExists).toBe(true)
+        } finally {
+          process.chdir(originalCwd)
+          yield* fs.remove(testDir, { recursive: true })
+        }
+      }).pipe(Effect.provide(NodeContext.layer)),
+    )
+
+    it.live("creates in all existing global skills dirs", () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem
+        const path = yield* Path.Path
+        const testHome = yield* Effect.sync(() => `/tmp/primer-test-home-${Date.now()}`)
+        const claudeSkillsDir = path.join(testHome, ".claude", "skills")
+        const opencodeSkillsDir = path.join(testHome, ".config", "opencode", "skills", "primer")
+        const claudeSkillPath = path.join(claudeSkillsDir, "primer.md")
+        const opencodeSkillPath = path.join(opencodeSkillsDir, "SKILL.md")
+
+        // Create both .claude/skills and opencode skills dir
+        yield* fs.makeDirectory(claudeSkillsDir, { recursive: true })
+        yield* fs.makeDirectory(opencodeSkillsDir, { recursive: true })
+
+        const originalHome = process.env.HOME
+        process.env.HOME = testHome
+
+        try {
+          const { stdout } = yield* testCli(["init"], {})
+
+          expect(stdout).toContain("Created:")
+          expect(stdout).toContain(claudeSkillPath)
+          expect(stdout).toContain(opencodeSkillPath)
+          expect(stdout).toContain("Created 2 skill file(s)")
+
+          // Verify both files exist with correct names
+          const claudeExists = yield* fs.exists(claudeSkillPath)
+          const opencodeExists = yield* fs.exists(opencodeSkillPath)
+          expect(claudeExists).toBe(true)
+          expect(opencodeExists).toBe(true)
+        } finally {
+          process.env.HOME = originalHome
+          yield* fs.remove(testHome, { recursive: true })
+        }
+      }).pipe(Effect.provide(NodeContext.layer)),
     )
   })
 })
