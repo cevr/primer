@@ -2,9 +2,9 @@
 
 ## Runtime
 
-### Never process.exit()
+### Avoid process.exit()
 
-Bypasses cleanup, corrupts terminal state.
+Bypasses cleanup, may corrupt terminal state. Prefer renderer methods for graceful shutdown.
 
 ```tsx
 // BAD

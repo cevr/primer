@@ -48,7 +48,7 @@ function App() {
 
   useKeyboard((key) => {
     if (key.name === "escape") {
-      renderer.destroy() // Never use process.exit()!
+      renderer.destroy() // Prefer over process.exit()
     }
     if (key.ctrl && key.name === "s") {
       saveDocument()

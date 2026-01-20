@@ -41,7 +41,7 @@ return <text>{props.name}</text>
 
 ## Runtime
 
-### Never process.exit()
+### Avoid process.exit()
 
 ```tsx
 // BAD

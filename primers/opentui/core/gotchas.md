@@ -14,9 +14,9 @@ node index.ts
 bun run index.ts
 ```
 
-### Never Use process.exit()
+### Avoid process.exit()
 
-Bypasses cleanup, leaves terminal in bad state.
+Bypasses cleanup, may leave terminal in bad state. Prefer renderer methods for graceful shutdown.
 
 ```typescript
 // BAD

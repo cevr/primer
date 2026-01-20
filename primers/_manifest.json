@@ -31,7 +31,12 @@
     },
     "code-style": {
       "description": "Framework-agnostic principles for writing **sound, simple, consistent, disciplin",
-      "files": ["index.md", "gotchas.md", "performance.md", "soundness.md"]
+      "files": [
+        "index.md",
+        "gotchas.md",
+        "performance.md",
+        "soundness.md"
+      ]
     },
     "effect": {
       "description": "Field manual for Effect. Patterns and best practices for writing idiomatic Effec",
@@ -73,15 +78,27 @@
     },
     "oxfmt": {
       "description": "High-performance code formatter. Prettier-compatible, no config required",
-      "files": ["index.md", "setup.md"]
+      "files": [
+        "index.md",
+        "setup.md"
+      ]
     },
     "oxlint": {
       "description": "High-performance ESLint-compatible linter. 50-100x faster than ESLint",
-      "files": ["index.md", "setup.md"]
+      "files": [
+        "index.md",
+        "setup.md"
+      ]
     },
     "primer": {
       "description": "Meta-guide for writing effective primers/skills for AI agents",
-      "files": ["index.md", "decision-trees.md", "gotchas.md", "progressive.md", "structure.md"]
+      "files": [
+        "index.md",
+        "decision-trees.md",
+        "gotchas.md",
+        "progressive.md",
+        "structure.md"
+      ]
     }
   }
 }

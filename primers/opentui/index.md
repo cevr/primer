@@ -11,7 +11,7 @@ Terminal UI framework for Bun with Core (imperative), React, and Solid reconcile
 
 1. **Use create-tui scaffolding** - `bunx create-tui@latest -t <template> my-app`
 2. **Options before args** - `text({ bold: true }, "content")` not `text("content", { bold: true })`
-3. **No process.exit()** - Breaks cleanup; use `renderer.close()` or `renderer.destroy()`
+3. **Avoid process.exit()** - Bypasses cleanup; prefer `renderer.close()` or `renderer.destroy()`
 4. **Input components need focus** - Call `.focus()` or use `focused` prop
 5. **Solid uses underscores** - `<tab_select>` not `<tab-select>`
 
