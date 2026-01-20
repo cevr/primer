@@ -24,17 +24,7 @@ primer <name> <sub>       # Render sub-primer (e.g., primer effect services)
 primer help               # Show help with examples
 \`\`\`
 
-## Current Primers
-
-| Primer | Use When |
-|--------|----------|
-| effect | Writing Effect TypeScript code |
-| cli | Building command-line tools |
-| oxlint | Setting up or configuring oxlint |
-| oxfmt | Setting up or configuring oxfmt |
-| primer | Writing new primers |
-
-Run \`primer\` for latest list with descriptions.
+Run \`primer\` for current list with descriptions.
 
 ## Usage Pattern
 
