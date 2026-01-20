@@ -235,23 +235,43 @@ const initCommand = Command.make("init", { local: localFlag }, ({ local }) =>
     const home = yield* Config.string("HOME").pipe(Config.withDefault("~"))
     const cwd = yield* Effect.sync(() => process.cwd())
 
-    // All potential skill locations
+    // All potential skill locations (skills/<name>/SKILL.md format)
     const projectDirs = [
-      { path: pathService.join(cwd, ".claude", "skills"), file: "primer.md" },
-      { path: pathService.join(cwd, ".cursor", "skills"), file: "primer.md" },
+      { path: pathService.join(cwd, ".claude", "skills", "primer"), file: "SKILL.md" },
+      { path: pathService.join(cwd, ".cursor", "skills", "primer"), file: "SKILL.md" },
     ]
     const userDirs = [
-      { path: pathService.join(home, ".claude", "skills"), file: "primer.md" },
-      { path: pathService.join(home, ".cursor", "skills"), file: "primer.md" },
+      { path: pathService.join(home, ".claude", "skills", "primer"), file: "SKILL.md" },
+      { path: pathService.join(home, ".cursor", "skills", "primer"), file: "SKILL.md" },
       { path: pathService.join(home, ".config", "opencode", "skills", "primer"), file: "SKILL.md" },
     ]
 
+    // Old format locations to clean up (skills/primer.md)
+    const oldProjectFiles = [
+      pathService.join(cwd, ".claude", "skills", "primer.md"),
+      pathService.join(cwd, ".cursor", "skills", "primer.md"),
+    ]
+    const oldUserFiles = [
+      pathService.join(home, ".claude", "skills", "primer.md"),
+      pathService.join(home, ".cursor", "skills", "primer.md"),
+    ]
+    const oldFiles = local ? oldProjectFiles : oldUserFiles
+
+    // Clean up old format files
+    for (const oldFile of oldFiles) {
+      if (yield* fs.exists(oldFile)) {
+        yield* fs.remove(oldFile)
+        yield* Console.log(`Removed old format: ${oldFile}`)
+      }
+    }
+
     const candidates = local ? projectDirs : userDirs
 
-    // Find all existing skills dirs
+    // Find parent skills dirs that exist
     const existingDirs: Array<{ path: string; file: string }> = []
     for (const candidate of candidates) {
-      if (yield* fs.exists(candidate.path)) {
+      const parentDir = pathService.dirname(candidate.path)
+      if (yield* fs.exists(parentDir)) {
         existingDirs.push(candidate)
       }
     }

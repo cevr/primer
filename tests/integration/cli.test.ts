@@ -283,13 +283,13 @@ describe("primer CLI workflow", () => {
   })
 
   describe("primer init", () => {
-    it.live("creates skill file in project .claude/skills by default with --local", () =>
+    it.live("creates skill file in project .claude/skills/primer by default with --local", () =>
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem
         const path = yield* Path.Path
         const testDir = yield* Effect.sync(() => `/tmp/primer-test-${Date.now()}`)
-        const skillsDir = path.join(testDir, ".claude", "skills")
-        const skillPath = path.join(skillsDir, "primer.md")
+        const skillsDir = path.join(testDir, ".claude", "skills", "primer")
+        const skillPath = path.join(skillsDir, "SKILL.md")
 
         // Create test directory
         yield* fs.makeDirectory(testDir, { recursive: true })
@@ -323,8 +323,8 @@ describe("primer CLI workflow", () => {
         const fs = yield* FileSystem.FileSystem
         const path = yield* Path.Path
         const testDir = yield* Effect.sync(() => `/tmp/primer-test-${Date.now()}`)
-        const skillsDir = path.join(testDir, ".claude", "skills")
-        const skillPath = path.join(skillsDir, "primer.md")
+        const skillsDir = path.join(testDir, ".claude", "skills", "primer")
+        const skillPath = path.join(skillsDir, "SKILL.md")
 
         // Create test directory with existing skill
         yield* fs.makeDirectory(skillsDir, { recursive: true })
@@ -350,12 +350,12 @@ describe("primer CLI workflow", () => {
         const fs = yield* FileSystem.FileSystem
         const path = yield* Path.Path
         const testDir = yield* Effect.sync(() => `/tmp/primer-test-${Date.now()}`)
-        const claudeSkillsDir = path.join(testDir, ".claude", "skills")
-        const cursorSkillsDir = path.join(testDir, ".cursor", "skills")
-        const claudeSkillPath = path.join(claudeSkillsDir, "primer.md")
-        const cursorSkillPath = path.join(cursorSkillsDir, "primer.md")
+        const claudeSkillsDir = path.join(testDir, ".claude", "skills", "primer")
+        const cursorSkillsDir = path.join(testDir, ".cursor", "skills", "primer")
+        const claudeSkillPath = path.join(claudeSkillsDir, "SKILL.md")
+        const cursorSkillPath = path.join(cursorSkillsDir, "SKILL.md")
 
-        // Create both .claude/skills and .cursor/skills
+        // Create both .claude/skills/primer and .cursor/skills/primer
         yield* fs.makeDirectory(claudeSkillsDir, { recursive: true })
         yield* fs.makeDirectory(cursorSkillsDir, { recursive: true })
 
@@ -387,12 +387,12 @@ describe("primer CLI workflow", () => {
         const fs = yield* FileSystem.FileSystem
         const path = yield* Path.Path
         const testHome = yield* Effect.sync(() => `/tmp/primer-test-home-${Date.now()}`)
-        const claudeSkillsDir = path.join(testHome, ".claude", "skills")
+        const claudeSkillsDir = path.join(testHome, ".claude", "skills", "primer")
         const opencodeSkillsDir = path.join(testHome, ".config", "opencode", "skills", "primer")
-        const claudeSkillPath = path.join(claudeSkillsDir, "primer.md")
+        const claudeSkillPath = path.join(claudeSkillsDir, "SKILL.md")
         const opencodeSkillPath = path.join(opencodeSkillsDir, "SKILL.md")
 
-        // Create both .claude/skills and opencode skills dir
+        // Create both .claude/skills/primer and opencode skills dir
         yield* fs.makeDirectory(claudeSkillsDir, { recursive: true })
         yield* fs.makeDirectory(opencodeSkillsDir, { recursive: true })
 
