@@ -209,7 +209,7 @@ describe("primer CLI workflow", () => {
 
           // Verify content
           const content = yield* fs.readFileString(skillPath)
-          expect(content).toContain("# Primer CLI Skill")
+          expect(content).toContain("# Primer")
         } finally {
           process.chdir(originalCwd)
           yield* fs.remove(testDir, { recursive: true })

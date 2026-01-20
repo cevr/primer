@@ -1,11 +1,12 @@
 # Primer
 
-CLI that renders curated markdown instructions for AI agents.
+Curated markdown primers for AI agents.
 
 ## Installation
 
 ```bash
 bun add -g @cvr/primer
+primer init                # Install skill file for AI tools
 ```
 
 ## Usage
@@ -14,52 +15,44 @@ bun add -g @cvr/primer
 primer                     # List available primers
 primer effect              # Render a primer
 primer effect services     # Render a sub-primer
-primer init                # Install skill file for AI tools
+primer help                # Show help with examples
 ```
 
 ## What is a Primer?
 
-A primer is curated markdown containing instructions for AI agents. Unlike templates that generate boilerplate, primers tell the agent _what to do_ — context, patterns, and step-by-step guidance.
+A primer is curated markdown that teaches AI agents _how to do things well_. Unlike templates that generate boilerplate, primers provide context, patterns, and step-by-step guidance.
+
+**Example use cases:**
+
+- `primer effect` before writing Effect TypeScript code
+- `primer cli` when building a command-line tool
+- `primer oxlint` when setting up linting
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                      primer CLI                         │
-├─────────────────────────────────────────────────────────┤
-│  ManifestService          │  PrimerCache               │
-│  - fetch _manifest.json   │  - local cache (~/.primer) │
-│  - primer discovery       │  - background refresh      │
-└───────────────────────────┴────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────┐
-│                   GitHub (primers/)                     │
-│  _manifest.json ─ primer registry with metadata        │
-│  effect/        ─ index.md + sub-primers               │
-│  oxlint/        ─ index.md + sub-primers               │
-└─────────────────────────────────────────────────────────┘
+primer CLI
+    │
+    ├─ ManifestService ──→ _manifest.json (primer registry)
+    │
+    └─ PrimerCache ──→ ~/.primer/ (local cache, background refresh)
+                │
+                └──→ GitHub raw (primers/)
 ```
 
-**Flow:**
+**Primer structure:** Each primer is a directory with `index.md` (main) + optional sub-primers. Sub-primers accessed via `primer <name> <sub>`.
 
-1. CLI fetches `_manifest.json` to discover available primers
-2. Primer content fetched on-demand from GitHub raw URLs
-3. Cached locally in `~/.primer/` with background refresh
+## AI Tool Integration
 
-**Primer structure:**
+Run `primer init` to install skill files:
 
-- Each primer is a directory with `index.md` (main) + optional sub-primers
-- Sub-primers accessed via `primer <name> <sub>` (e.g., `primer effect services`)
-- Manifest defines descriptions and sub-primer metadata
+| Tool        | Location                                    |
+| ----------- | ------------------------------------------- |
+| Claude Code | `~/.claude/skills/primer.md`                |
+| Cursor      | `~/.cursor/skills/primer.md`                |
+| OpenCode    | `~/.config/opencode/skills/primer/SKILL.md` |
 
-## Skill Integration
-
-Run `primer init` to install a skill file that teaches AI tools how to use the CLI:
-
-- `~/.claude/skills/primer.md` — Claude Code
-- `~/.cursor/skills/primer.md` — Cursor
-- `~/.config/opencode/skills/primer/SKILL.md` — OpenCode
+Use `primer init --local` for project-level installation.
 
 ## Development
 

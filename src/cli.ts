@@ -5,26 +5,43 @@ import type { PlatformError } from "@effect/platform/Error"
 import { PrimerCache } from "./services/PrimerCache.js"
 import { ManifestService } from "./services/ManifestService.js"
 
-const SKILL_CONTENT = `# Primer CLI Skill
+const SKILL_CONTENT = `# Primer
 
-CLI that renders curated markdown instructions for AI agents.
+Curated markdown primers for AI agents. Use proactively when working on relevant topics.
 
-## Quick Reference
+## When to Use
+
+- **Before implementing**: Check if a primer exists for the technology/pattern
+- **Stuck on patterns**: Primers contain battle-tested approaches
+- **Need context**: Primers explain the "why" not just the "how"
+
+## Commands
 
 \`\`\`bash
-# List available primers (shows top-level only)
-primer
-
-# Render a primer (auto-fetches if not cached)
-primer effect                  # Main Effect guide
-primer effect services         # Sub-primer: Services & Layers
-primer oxlint                  # Main oxlint guide
-primer oxlint setup            # Sub-primer: setup instructions
+primer                    # List all available primers
+primer <name>             # Render primer (e.g., primer effect)
+primer <name> <sub>       # Render sub-primer (e.g., primer effect services)
+primer help               # Show help with examples
 \`\`\`
 
-## Available Primers
+## Current Primers
 
-Run \`primer\` to see current list. Sub-primers accessed via \`primer <name> <sub>\`.
+| Primer | Use When |
+|--------|----------|
+| effect | Writing Effect TypeScript code |
+| cli | Building command-line tools |
+| oxlint | Setting up or configuring oxlint |
+| oxfmt | Setting up or configuring oxfmt |
+| primer | Writing new primers |
+
+Run \`primer\` for latest list with descriptions.
+
+## Usage Pattern
+
+1. Check for relevant primer before starting work
+2. Read the main primer for overview
+3. Dive into sub-primers for specific topics
+4. Apply patterns to your implementation
 `
 
 const pathArgs = Args.text({ name: "path" }).pipe(Args.repeated)
