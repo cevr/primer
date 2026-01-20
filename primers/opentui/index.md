@@ -1,3 +1,8 @@
+---
+sources:
+  - https://github.com/msmps/opentui-skill/tree/main/skill/opentui
+---
+
 # OpenTUI
 
 Terminal UI framework for Bun with Core (imperative), React, and Solid reconcilers.

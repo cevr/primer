@@ -1,3 +1,8 @@
+---
+sources:
+  - https://github.com/kitlangton/effect-solutions/tree/main/packages
+---
+
 # Effect TypeScript
 
 Field manual for Effect. Patterns and best practices for writing idiomatic Effect code.

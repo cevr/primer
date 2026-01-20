@@ -2,6 +2,22 @@
 
 Meta-guide for writing effective primers/skills for AI agents.
 
+## Optional Frontmatter
+
+Primers can include YAML frontmatter for attribution:
+
+```markdown
+---
+sources:
+  - https://example.com/docs
+  - https://github.com/org/repo
+---
+
+# Primer Title
+```
+
+Use `sources` to credit reference material, documentation, or repos the primer was derived from.
+
 ## Core Principle
 
 **AI agents scan, not read.** Structure for quick navigation, not prose comprehension.
