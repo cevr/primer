@@ -99,29 +99,36 @@ export const PrimerCacheLive = Layer.effect(
         const primerDir = path.join(basePath, primerName)
         yield* fs.makeDirectory(primerDir, { recursive: true })
 
-        // Get existing etags to skip unchanged files
         const meta = yield* readMeta(metaPath).pipe(
           Effect.provideService(FileSystem.FileSystem, fs),
         )
         const existingEtags = meta.primers?.[primerName]?.etags ?? {}
-        const newEtags: Record<string, { etag: string }> = { ...existingEtags }
 
-        // Fetch any missing files
+        // Find missing files
+        const missingFiles: string[] = []
         for (const file of primerConfig.files) {
           const filePath = path.join(primerDir, file)
-
-          // Check if file exists locally
           const fileExists = yield* fs.exists(filePath)
-          if (fileExists) continue
+          if (!fileExists) missingFiles.push(file)
+        }
 
-          // Ensure parent directories exist for nested files
+        if (missingFiles.length === 0) return
+
+        // Fetch all missing files in parallel
+        const results = yield* Effect.all(
+          missingFiles.map((file) =>
+            fetchFile(`${primerName}/${file}`).pipe(Effect.map((result) => ({ file, result }))),
+          ),
+          { concurrency: 20 },
+        )
+
+        // Write files and collect etags
+        const newEtags: Record<string, { etag: string }> = { ...existingEtags }
+        for (const { file, result } of results) {
+          if ("notModified" in result) continue
+          const filePath = path.join(primerDir, file)
           const fileDir = path.dirname(filePath)
           yield* fs.makeDirectory(fileDir, { recursive: true })
-
-          // Fetch the file
-          const result = yield* fetchFile(`${primerName}/${file}`)
-          if ("notModified" in result) continue
-
           yield* fs.writeFileString(filePath, result.content)
           if (result.etag) {
             newEtags[file] = { etag: result.etag }
@@ -173,16 +180,25 @@ export const PrimerCacheLive = Layer.effect(
         const primerDir = path.join(basePath, primerName)
         yield* fs.makeDirectory(primerDir, { recursive: true })
 
+        // Fetch all files in parallel
+        const results = yield* Effect.all(
+          files.map((file) => {
+            const cachedEtag = existingEtags[file]?.etag
+            return fetchFile(`${primerName}/${file}`, cachedEtag).pipe(
+              Effect.map((result) => ({ file, result })),
+              Effect.catchAll(() => Effect.succeed(null)),
+            )
+          }),
+          { concurrency: 20 },
+        )
+
+        // Write updated files and collect etags
         const newEtags: EtagMap = { ...existingEtags }
         let anyUpdated = false
 
-        for (const file of files) {
-          const cachedEtag = existingEtags[file]?.etag
-          const result = yield* fetchFile(`${primerName}/${file}`, cachedEtag).pipe(
-            Effect.catchAll(() => Effect.succeed(null)),
-          )
-          if (!result || "notModified" in result) continue
-
+        for (const entry of results) {
+          if (!entry || "notModified" in entry.result) continue
+          const { file, result } = entry
           anyUpdated = true
           const filePath = path.join(primerDir, file)
           yield* fs.writeFileString(filePath, result.content)
