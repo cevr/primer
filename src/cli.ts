@@ -67,16 +67,8 @@ export const primerCommand = Command.make("primer", { path: pathArgs }, ({ path 
       for (const name of primerNames) {
         const config = manifest.primers[name]
         if (!config) continue
-        yield* Console.log(`  primer ${name}`)
-        if (config.description) {
-          yield* Console.log(`    ${config.description}`)
-        }
-        const subFiles = config.files.filter((f) => f !== "index.md")
-        for (const file of subFiles) {
-          const subName = file.replace(/\.md$/, "")
-          yield* Console.log(`  primer ${name} ${subName}`)
-        }
-        yield* Console.log("")
+        const desc = config.description ? ` - ${config.description}` : ""
+        yield* Console.log(`  ${name}${desc}`)
       }
       return
     }
