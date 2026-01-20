@@ -1,5 +1,11 @@
 # @cvr/primer
 
+## 0.2.1
+
+### Patch Changes
+
+- [`d89ed6a`](https://github.com/cevr/primer/commit/d89ed6a3f2074e6bd8e1011d859c3056b7e1619e) Thanks [@cevr](https://github.com/cevr)! - fix: use correct skill directory format (skills/<name>/SKILL.md)
+
 ## 0.2.0
 
 ### Minor Changes
