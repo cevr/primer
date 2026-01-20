@@ -131,9 +131,9 @@ Add files as distinct topics emerge. Common file types:
 
 ## Directory Rules
 
-1. **Flat is better** - avoid nested directories
-2. **One level max** - `primers/<name>/*.md`
-3. **Related topics** - same primer, different files (not subdirs)
+1. **Flat by default** - use files until topic warrants separation
+2. **Nest for distinct domains** - `primers/web/react/`, `primers/web/solid/`
+3. **Every level needs index.md** - navigation must work at any depth
 
 ## Cross-Primer References
 

@@ -157,7 +157,7 @@ One-line description.
 
 ## 6. Deep Nesting Without Navigation
 
-**Problem:** Nested directories with no guide.
+**Problem:** Nested directories without index.md at each level.
 
 **Bad:**
 
@@ -165,21 +165,29 @@ One-line description.
 primers/topic/
 ├── core/
 │   ├── basics/
-│   │   └── intro.md
+│   │   └── intro.md      ← no index.md
 │   └── advanced/
-│       └── patterns.md
+│       └── patterns.md   ← no index.md
 └── extras/
-    └── utils.md
+    └── utils.md          ← no index.md
 ```
 
-**Fix:** Flatten structure, use files not folders.
+**Fix:** Add index.md with navigation at every level.
 
 ```
 primers/topic/
-├── index.md
-├── basics.md
-├── patterns.md
-└── utils.md
+├── index.md              ← links to core/, extras/
+├── core/
+│   ├── index.md          ← links to basics/, advanced/
+│   ├── basics/
+│   │   ├── index.md      ← navigation for basics
+│   │   └── intro.md
+│   └── advanced/
+│       ├── index.md      ← navigation for advanced
+│       └── patterns.md
+└── extras/
+    ├── index.md          ← navigation for extras
+    └── utils.md
 ```
 
 ## 7. Missing Cross-References
@@ -290,7 +298,7 @@ Before shipping a primer:
 - [ ] Consistent structure across files
 - [ ] Gotchas prominently surfaced
 - [ ] Cross-references to related topics
-- [ ] No deep nesting (max 1 level)
+- [ ] Nested dirs have index.md with navigation
 - [ ] Descriptive file names
 - [ ] Quick reference for lookups
 
