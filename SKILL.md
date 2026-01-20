@@ -5,32 +5,19 @@ CLI that renders curated markdown instructions for AI agents.
 ## Quick Reference
 
 ```bash
-# List available primers (auto-fetches manifest if needed)
+# List available primers (shows top-level only)
 primer
 
 # Render a primer (auto-fetches if not cached)
-primer effect                  # Effect TypeScript guide
-primer effect services         # Services & Layers guide
-primer oxlint                  # oxlint quick start
-primer oxlint setup            # oxlint setup instructions
-primer oxfmt                   # oxfmt quick start
+primer effect                  # Main Effect guide
+primer effect services         # Sub-primer: Services & Layers
+primer oxlint                  # Main oxlint guide
+primer oxlint setup            # Sub-primer: setup instructions
 ```
 
 ## Available Primers
 
-| Primer                 | Description                           |
-| ---------------------- | ------------------------------------- |
-| `effect`               | Effect TypeScript patterns            |
-| `effect basics`        | Effect.fn, Effect.gen, pipe           |
-| `effect services`      | Context.Tag, Layer, DI patterns       |
-| `effect data-modeling` | Schema.Class, branded types, variants |
-| `effect errors`        | Schema.TaggedError, catchTag, defects |
-| `effect testing`       | @effect/vitest, test layers           |
-| `effect cli`           | @effect/cli commands, args, options   |
-| `oxlint`               | High-performance linter               |
-| `oxlint setup`         | Framework-specific oxlint config      |
-| `oxfmt`                | High-performance formatter            |
-| `oxfmt setup`          | oxfmt configuration guide             |
+Run `primer` to see current list. Sub-primers accessed via `primer <name> <sub>`.
 
 ## How It Works
 
