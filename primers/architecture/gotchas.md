@@ -508,6 +508,8 @@ it.effect("finds user", () =>
 )
 ```
 
+**See `testing.md`** for comprehensive test layer patterns.
+
 ---
 
 ## Barrel File Imports
@@ -602,4 +604,5 @@ const result =
 - `services.md` - layer patterns
 - `errors.md` - error handling
 - `config.md` - configuration
+- `testing.md` - test layers and mocking
 - `../code-style/performance.md` - general performance patterns

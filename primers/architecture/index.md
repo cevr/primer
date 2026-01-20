@@ -21,21 +21,23 @@ Building something?
 ├─ Managing configuration       → config.md
 ├─ Modeling domain types        → domain.md
 ├─ Designing APIs               → api.md
+├─ Writing tests                → testing.md
 └─ Avoiding pitfalls            → gotchas.md
 ```
 
 ## Topic Index
 
-| Topic             | File            | When to Read                        |
-| ----------------- | --------------- | ----------------------------------- |
-| Project structure | `structure.md`  | Setting up monorepo, package layout |
-| Module boundaries | `boundaries.md` | Deciding import rules, isolation    |
-| Services & DI     | `services.md`   | Context.Tag, Layer composition      |
-| Error handling    | `errors.md`     | TaggedError, catchTag, recovery     |
-| Configuration     | `config.md`     | Config.\*, redacted secrets         |
-| Domain modeling   | `domain.md`     | Schema.Class, branded types         |
-| API design        | `api.md`        | HttpApi, endpoints, middleware      |
-| Common mistakes   | `gotchas.md`    | Effect-specific pitfalls            |
+| Topic             | File            | When to Read                         |
+| ----------------- | --------------- | ------------------------------------ |
+| Project structure | `structure.md`  | Setting up monorepo, package layout  |
+| Module boundaries | `boundaries.md` | Deciding import rules, isolation     |
+| Services & DI     | `services.md`   | Context.Tag, Layer composition       |
+| Error handling    | `errors.md`     | TaggedError, catchTag, recovery      |
+| Configuration     | `config.md`     | Config.\*, redacted secrets          |
+| Domain modeling   | `domain.md`     | Schema.Class, branded types          |
+| API design        | `api.md`        | HttpApi, endpoints, middleware       |
+| Testing           | `testing.md`    | Test layers, mocking, @effect/vitest |
+| Common mistakes   | `gotchas.md`    | Effect-specific pitfalls             |
 
 ## Quick Decision Trees
 
@@ -96,4 +98,5 @@ import { it, expect } from "@effect/vitest"
 
 - `structure.md` - start here for project organization
 - `services.md` - Layer patterns and DI
+- `testing.md` - test layers and mocking
 - `gotchas.md` - common mistakes to avoid
