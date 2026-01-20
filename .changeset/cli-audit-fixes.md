@@ -1,5 +1,5 @@
 ---
-"primer": patch
+"@cvr/primer": patch
 ---
 
 fix(cli): address 5 CLI audit issues
