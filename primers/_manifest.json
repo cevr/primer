@@ -16,6 +16,18 @@
         "testing.md"
       ]
     },
+    "bun": {
+      "description": "Drop-in Node.js replacement. Runtime, bundler, test runner, package manager — on",
+      "files": [
+        "index.md",
+        "data.md",
+        "frontend.md",
+        "gotchas.md",
+        "runtime.md",
+        "serve.md",
+        "testing.md"
+      ]
+    },
     "cli": {
       "description": "Build CLIs that feel native, fail gracefully, compose beautifully",
       "files": [
