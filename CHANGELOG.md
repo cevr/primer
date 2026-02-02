@@ -1,5 +1,19 @@
 # @cvr/primer
 
+## 0.3.0
+
+### Minor Changes
+
+- [`4b8dd5e`](https://github.com/cevr/primer/commit/4b8dd5efa2596f0da4020293a83cdee330785785) Thanks [@cevr](https://github.com/cevr)! - feat: compressed index output for non-TTY (agent) consumers
+  - `primer <name>` in non-TTY outputs a compact index with subtopic table and file paths instead of full content
+  - `primer <name> <sub>` in non-TTY outputs just the resolved file path
+  - Compact indexes are generated at fetch time (ensure/refresh), not via build step
+  - TTY behavior unchanged
+
+### Patch Changes
+
+- [`d89ed6a`](https://github.com/cevr/primer/commit/d89ed6a3f2074e6bd8e1011d859c3056b7e1619e) Thanks [@cevr](https://github.com/cevr)! - fix: use correct skill directory format (skills/<name>/SKILL.md)
+
 ## 0.2.0
 
 ### Minor Changes
