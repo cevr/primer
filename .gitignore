@@ -1,6 +1,9 @@
 # Build output
 bin/
 
+# Generated compact indexes (derived at runtime)
+primers/**/_compact.md
+
 # Logs
 logs
 *.log

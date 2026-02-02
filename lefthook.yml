@@ -1,16 +1,16 @@
 pre-commit:
   parallel: true
-  commands:
-    typecheck:
-      run: bun run typecheck
-    lint:
+  jobs:
+    - name: lint
       run: bun run lint:fix
       stage_fixed: true
-    format:
+    - name: fmt
       run: bun run fmt
       stage_fixed: true
-    test:
+    - name: typecheck
+      run: bun run typecheck
+    - name: test
       run: bun run test
-    manifest:
+    - name: manifest
       glob: "primers/**/*.md"
       run: bun run generate:manifest && git add primers/_manifest.json

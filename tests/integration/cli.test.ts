@@ -107,6 +107,18 @@ const PrimerCacheTestWithTracking = (content: Record<string, string>) =>
             if (value) return value
             return yield* new ContentNotFoundError({ path: key })
           }),
+        resolvePath: (segments: ReadonlyArray<string>) =>
+          Effect.gen(function* () {
+            yield* Ref.update(callRecorder, (calls) => [
+              ...calls,
+              { service: "cache" as const, method: "resolvePath", args: segments },
+            ])
+            const key = segments.join("/")
+            const indexKey = `${key}/index`
+            const value = content[key] ?? content[indexKey]
+            if (value) return `/mock/.primer/${key}.md`
+            return yield* new ContentNotFoundError({ path: key })
+          }),
         ensure: (primer: string) =>
           Ref.update(callRecorder, (calls) => [
             ...calls,
@@ -230,14 +242,15 @@ describe("primer CLI workflow", () => {
       }),
     )
 
-    it.live("renders nested primer content", () =>
+    it.live("outputs file path for nested primer in non-TTY", () =>
       Effect.gen(function* () {
         const { stdout } = yield* testCli(["effect", "services"], {
           "effect/services": "# Services & Layers\n\nDependency injection.",
         })
 
-        expect(stdout).toContain("# Services & Layers")
-        expect(stdout).toContain("Dependency injection.")
+        // non-TTY: subtopic outputs file path, not content
+        expect(stdout).toContain("/mock/.primer/effect/services.md")
+        expect(stdout).not.toContain("# Services & Layers")
       }),
     )
 
@@ -440,11 +453,11 @@ describe("primer CLI workflow", () => {
           // Empty content - primer not in cache
         })
 
-        // First resolve fails, then ensure is called, then resolve again
+        // non-TTY top-level: resolve(_compact) fails, resolve(index) fails,
+        // ensure is called, then resolve retries
         const methods = calls.map((c) => c.method)
-        expect(methods[0]).toBe("resolve")
-        expect(methods[1]).toBe("ensure")
-        expect(methods[2]).toBe("resolve")
+        expect(methods).toContain("resolve")
+        expect(methods).toContain("ensure")
         // Still fails because test content is empty
         expect(stderr).toContain("Primer not found")
       }),
@@ -462,14 +475,39 @@ describe("primer CLI workflow", () => {
       }),
     )
 
-    it.live("nested path resolves with correct segments", () =>
+    it.live("nested path calls resolvePath with correct segments in non-TTY", () =>
       Effect.gen(function* () {
         const { calls } = yield* testCliWithSequence(["effect", "services"], {
           "effect/services": "# Services",
         })
 
-        const resolveCall = calls.find((c) => c.method === "resolve")
-        expect(resolveCall?.args).toEqual(["effect", "services"])
+        const resolvePathCall = calls.find((c) => c.method === "resolvePath")
+        expect(resolvePathCall?.args).toEqual(["effect", "services"])
+      }),
+    )
+
+    it.live("top-level non-TTY resolves _compact first", () =>
+      Effect.gen(function* () {
+        const { calls, stdout } = yield* testCliWithSequence(["effect"], {
+          "effect/_compact": "# Effect (compact index)",
+          effect: "# Effect Guide (full)",
+        })
+
+        // Should resolve _compact path first in non-TTY
+        const firstResolve = calls.find((c) => c.method === "resolve")
+        expect(firstResolve?.args).toEqual(["effect", "_compact"])
+        expect(stdout).toContain("# Effect (compact index)")
+        expect(stdout).not.toContain("# Effect Guide (full)")
+      }),
+    )
+
+    it.live("top-level non-TTY falls back to index when _compact missing", () =>
+      Effect.gen(function* () {
+        const { stdout } = yield* testCliWithSequence(["effect"], {
+          effect: "# Effect Guide",
+        })
+
+        expect(stdout).toContain("# Effect Guide")
       }),
     )
   })

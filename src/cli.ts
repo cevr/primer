@@ -2,10 +2,16 @@ import { Args, Command, HelpDoc, Options, Span } from "@effect/cli"
 import { Console, Effect, Fiber, Stream, Ref, Config } from "effect"
 import { Terminal, FileSystem, Path } from "@effect/platform"
 import type { PlatformError } from "@effect/platform/Error"
+import type { ContentNotFoundError } from "./lib/errors.js"
 import { PrimerCache } from "./services/PrimerCache.js"
 import { ManifestService } from "./services/ManifestService.js"
 
-const SKILL_CONTENT = `# Primer
+const SKILL_CONTENT = `---
+name: primer
+description: Curated markdown primers for AI agents. Use proactively when working on relevant topics.
+---
+
+# Primer
 
 Curated markdown primers for AI agents. Use proactively when working on relevant topics.
 
@@ -150,75 +156,96 @@ export const primerCommand = Command.make(
       const primer = path[0]
       if (!primer) return
 
-      const content = yield* cache.resolve(path).pipe(
-        Effect.catchTag("ContentNotFoundError", () =>
-          withSpinner(`Fetching ${primer}...`, cache.ensure(primer)).pipe(
-            Effect.andThen(cache.resolve(path)),
+      const withResolveErrors = <A>(
+        resolveEffect: Effect.Effect<A, ContentNotFoundError | PlatformError>,
+      ) =>
+        resolveEffect.pipe(
+          Effect.catchTag("ContentNotFoundError", () =>
+            withSpinner(`Fetching ${primer}...`, cache.ensure(primer)).pipe(
+              Effect.andThen(resolveEffect),
+            ),
           ),
-        ),
-        Effect.catchTag("ContentNotFoundError", (e) =>
-          Effect.gen(function* () {
-            yield* Console.error(e.message)
-            yield* Console.error("")
-
-            // Try to suggest similar paths
-            const suggestions = yield* cache
-              .suggestSimilar(path)
-              .pipe(Effect.catchAll(() => Effect.succeed([])))
-
-            if (suggestions.length > 0) {
-              yield* Console.error("Did you mean:")
-              for (const suggestion of suggestions) {
-                yield* Console.error(`  primer ${suggestion}`)
-              }
+          Effect.catchTag("ContentNotFoundError", (e) =>
+            Effect.gen(function* () {
+              yield* Console.error(e.message)
               yield* Console.error("")
-            }
 
-            yield* Console.error("Run `primer` to see available primers.")
-          }).pipe(Effect.andThen(Effect.fail(e))),
-        ),
-        Effect.catchTag("ManifestError", (e) =>
-          Console.error(`Failed to fetch primer: ${primer}`).pipe(
-            Effect.andThen(Console.error("")),
-            Effect.andThen(Console.error("Check your network connection and try again.")),
-            Effect.andThen(Effect.fail(e)),
+              const suggestions = yield* cache
+                .suggestSimilar(path)
+                .pipe(Effect.catchAll(() => Effect.succeed([])))
+
+              if (suggestions.length > 0) {
+                yield* Console.error("Did you mean:")
+                for (const suggestion of suggestions) {
+                  yield* Console.error(`  primer ${suggestion}`)
+                }
+                yield* Console.error("")
+              }
+
+              yield* Console.error("Run `primer` to see available primers.")
+            }).pipe(Effect.andThen(Effect.fail(e))),
           ),
-        ),
-        Effect.catchTag("FetchError", (e) =>
-          Effect.gen(function* () {
-            yield* Console.error(`Primer not found: ${primer}`)
-            yield* Console.error("")
-
-            // Try to suggest similar primers
-            const suggestions = yield* cache
-              .suggestSimilar(path)
-              .pipe(Effect.catchAll(() => Effect.succeed([])))
-
-            if (suggestions.length > 0) {
-              yield* Console.error("Did you mean:")
-              for (const suggestion of suggestions) {
-                yield* Console.error(`  primer ${suggestion}`)
-              }
+          Effect.catchTag("ManifestError", (e) =>
+            Console.error(`Failed to fetch primer: ${primer}`).pipe(
+              Effect.andThen(Console.error("")),
+              Effect.andThen(Console.error("Check your network connection and try again.")),
+              Effect.andThen(Effect.fail(e)),
+            ),
+          ),
+          Effect.catchTag("FetchError", (e) =>
+            Effect.gen(function* () {
+              yield* Console.error(`Primer not found: ${primer}`)
               yield* Console.error("")
-            }
 
-            yield* Console.error("Run `primer` to see available primers.")
-          }).pipe(Effect.andThen(Effect.fail(e))),
-        ),
-        Effect.catchAll(() => Effect.succeed(null)),
-      )
+              const suggestions = yield* cache
+                .suggestSimilar(path)
+                .pipe(Effect.catchAll(() => Effect.succeed([])))
 
-      if (content === null) return
+              if (suggestions.length > 0) {
+                yield* Console.error("Did you mean:")
+                for (const suggestion of suggestions) {
+                  yield* Console.error(`  primer ${suggestion}`)
+                }
+                yield* Console.error("")
+              }
 
-      // TTY: background refresh (non-blocking)
-      // non-TTY: skip refresh (use cache) unless --fetch
+              yield* Console.error("Run `primer` to see available primers.")
+            }).pipe(Effect.andThen(Effect.fail(e))),
+          ),
+          Effect.catchAll(() => Effect.succeed(null)),
+        )
+
       if (tty) {
-        yield* cache.refreshInBackground(primer).pipe(Effect.forkDaemon)
-      } else if (fetch) {
-        yield* withSpinner(`Refreshing ${primer}...`, cache.refreshInBackground(primer))
-      }
+        // TTY: full content + background refresh
+        const content = yield* withResolveErrors(cache.resolve(path))
+        if (content === null) return
 
-      yield* Console.log(content)
+        yield* cache.refreshInBackground(primer).pipe(Effect.forkDaemon)
+        yield* Console.log(content)
+      } else {
+        // non-TTY (agent): compact index for top-level, file path for subtopics
+        if (path.length === 1) {
+          // Top-level: output compact index, fall back to regular index
+          const content = yield* withResolveErrors(
+            cache
+              .resolve([primer, "_compact"])
+              .pipe(Effect.catchTag("ContentNotFoundError", () => cache.resolve(path))),
+          )
+          if (content === null) return
+
+          yield* Console.log(content)
+        } else {
+          // Subtopic: output file path only
+          const filePath = yield* withResolveErrors(cache.resolvePath(path))
+          if (filePath === null) return
+
+          yield* Console.log(filePath)
+        }
+
+        if (fetch) {
+          yield* withSpinner(`Refreshing ${primer}...`, cache.refreshInBackground(primer))
+        }
+      }
     }).pipe(Effect.withSpan("primerCommand")),
 ).pipe(Command.withDescription(helpDescription))
 

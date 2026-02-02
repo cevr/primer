@@ -2,6 +2,7 @@ import { Context, DateTime, Effect, Layer, Config, Option } from "effect"
 import { FileSystem, Path, HttpClient, HttpClientRequest, Headers } from "@effect/platform"
 import type { PlatformError } from "@effect/platform/Error"
 import { ContentNotFoundError, FetchError, ManifestError } from "../lib/errors.js"
+import { generateCompact } from "../lib/compact.js"
 import { ManifestService } from "./ManifestService.js"
 import { readMeta, writeMeta, type Meta } from "../lib/meta.js"
 
@@ -25,6 +26,9 @@ export class PrimerCache extends Context.Tag("@primer/PrimerCache")<
   PrimerCache,
   {
     readonly resolve: (
+      path: ReadonlyArray<string>,
+    ) => Effect.Effect<string, ContentNotFoundError | PlatformError>
+    readonly resolvePath: (
       path: ReadonlyArray<string>,
     ) => Effect.Effect<string, ContentNotFoundError | PlatformError>
     readonly ensure: (
@@ -146,6 +150,15 @@ export const PrimerCacheLive = Layer.effect(
         yield* writeMeta(metaPath, updatedMeta).pipe(
           Effect.provideService(FileSystem.FileSystem, fs),
         )
+
+        // Generate compact index from freshly fetched files
+        const compact = yield* generateCompact(primerName, primerDir).pipe(
+          Effect.provideService(FileSystem.FileSystem, fs),
+          Effect.provideService(Path.Path, path),
+        )
+        if (compact !== null) {
+          yield* fs.writeFileString(path.join(primerDir, "_compact.md"), compact)
+        }
       }).pipe(Effect.withSpan("ensure", { attributes: { primerName } }))
 
     const resolve = (segments: ReadonlyArray<string>) =>
@@ -168,6 +181,23 @@ export const PrimerCacheLive = Layer.effect(
           path: segments.join("/"),
         })
       }).pipe(Effect.withSpan("resolve", { attributes: { path: segments.join("/") } }))
+
+    const resolvePath = (segments: ReadonlyArray<string>) =>
+      Effect.gen(function* () {
+        const targetPath = path.join(basePath, ...segments)
+
+        const indexPath = path.join(targetPath, "index.md")
+        const indexExists = yield* fs.exists(indexPath)
+        if (indexExists) return indexPath
+
+        const mdPath = targetPath.endsWith(".md") ? targetPath : `${targetPath}.md`
+        const mdExists = yield* fs.exists(mdPath)
+        if (mdExists) return mdPath
+
+        return yield* new ContentNotFoundError({
+          path: segments.join("/"),
+        })
+      }).pipe(Effect.withSpan("resolvePath", { attributes: { path: segments.join("/") } }))
 
     type EtagMap = Record<string, { etag: string }>
 
@@ -222,6 +252,15 @@ export const PrimerCacheLive = Layer.effect(
           yield* writeMeta(metaPath, updatedMeta).pipe(
             Effect.provideService(FileSystem.FileSystem, fs),
           )
+
+          // Regenerate compact index from updated files
+          const compact = yield* generateCompact(primerName, primerDir).pipe(
+            Effect.provideService(FileSystem.FileSystem, fs),
+            Effect.provideService(Path.Path, path),
+          )
+          if (compact !== null) {
+            yield* fs.writeFileString(path.join(primerDir, "_compact.md"), compact)
+          }
         }
 
         return anyUpdated
@@ -307,7 +346,14 @@ export const PrimerCacheLive = Layer.effect(
         return suggestions
       }).pipe(Effect.withSpan("suggestSimilar"))
 
-    return { resolve, ensure, refreshInBackground, refreshAll, suggestSimilar } as const
+    return {
+      resolve,
+      resolvePath,
+      ensure,
+      refreshInBackground,
+      refreshAll,
+      suggestSimilar,
+    } as const
   }),
 )
 
@@ -350,6 +396,14 @@ export const PrimerCacheTest = (content: Record<string, string>) =>
       const indexKey = `${key}/index`
       const value = content[key] ?? content[indexKey]
       return value ? Effect.succeed(value) : Effect.fail(new ContentNotFoundError({ path: key }))
+    },
+    resolvePath: (segments: ReadonlyArray<string>) => {
+      const key = segments.join("/")
+      const indexKey = `${key}/index`
+      const value = content[key] ?? content[indexKey]
+      return value
+        ? Effect.succeed(`/mock/.primer/${key}.md`)
+        : Effect.fail(new ContentNotFoundError({ path: key }))
     },
     ensure: () => Effect.void,
     refreshInBackground: () => Effect.void,

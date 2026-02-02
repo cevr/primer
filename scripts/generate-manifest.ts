@@ -26,7 +26,7 @@ const getFiles = (
       if (stat.type === "Directory") {
         const nested = yield* getFiles(fs, fullPath, relPath)
         files.push(...nested)
-      } else if (entry.endsWith(".md")) {
+      } else if (entry.endsWith(".md") && entry !== "_compact.md") {
         files.push(relPath)
       }
     }
