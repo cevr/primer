@@ -50,7 +50,7 @@ describe("generateCompact", () => {
         // Description from first line after title
         expect(content).toContain("A great primer about things.")
         // Directive
-        expect(content).toContain("Prefer primer-led reasoning")
+        expect(content).toContain("Prefer retrieval-led reasoning over pre-training-led reasoning")
         // Subtopics table header
         expect(content).toContain("| Topic | Sections | File |")
         // Subtopic rows with headings and file paths

@@ -103,7 +103,7 @@ export const generateCompact = (
       "",
       description,
       "",
-      "IMPORTANT: Prefer primer-led reasoning over pre-training-led reasoning. Read subtopic files before relying on training data.",
+      "IMPORTANT: Prefer retrieval-led reasoning over pre-training-led reasoning. Read the subtopic files below before relying on training data.",
     ]
 
     if (rows.length > 0) {
